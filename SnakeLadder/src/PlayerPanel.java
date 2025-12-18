@@ -1,6 +1,9 @@
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.awt.image.BufferedImage; // [FIX 1] Import ini sebelumnya hilang
+import java.io.File;                 // [FIX 2] Penting untuk membaca file
+import javax.imageio.ImageIO;        // [FIX 3] Penting untuk memuat gambar
 import java.util.*;
 import java.util.List;
 
@@ -8,15 +11,32 @@ public class PlayerPanel extends JPanel {
     private final Stack<Player> players;
     private Player current;
 
+    // Cache gambar
+    private BufferedImage[] charIcons = new BufferedImage[3];
+
     public PlayerPanel(Stack<Player> players) {
         this.players = players;
-
-        // Agar background transparan (mengikuti warna pasir di main frame)
         setOpaque(false);
+        setBorder(new EmptyBorder(25, 15, 25, 15));
 
-        // Warna background panel (opsional, tapi kita set transparan di atas)
-        setBackground(CowboyTheme.BG_SAND);
-        setBorder(new EmptyBorder(20, 20, 20, 20));
+        loadCharIcons(); // Load gambar saat panel dibuat
+    }
+
+    // Method untuk load gambar dari folder assets
+    private void loadCharIcons() {
+        try {
+            // Pastikan nama file sesuai (huruf kecil)
+            String[] files = {"assets/dolphin.png", "assets/turtle.png", "assets/submarine.png"};
+            for(int i=0; i<3; i++) {
+                File f = new File(files[i]);
+                if(f.exists()) {
+                    charIcons[i] = ImageIO.read(f);
+                }
+            }
+        } catch (Exception e) {
+            // Silent fail: jika gambar gagal load, game tetap jalan (pakai lingkaran warna)
+            System.out.println("Gagal load icon pemain: " + e.getMessage());
+        }
     }
 
     public void setCurrent(Player p) {
@@ -24,13 +44,11 @@ public class PlayerPanel extends JPanel {
         repaint();
     }
 
-    // Menghitung tinggi panel agar ScrollPane berfungsi
     @Override
     public Dimension getPreferredSize() {
-        int cardHeight = 90;
-        int headerHeight = 50;
-        int totalHeight = headerHeight + (players.size() * cardHeight) + 30;
-        return new Dimension(380, Math.max(250, totalHeight));
+        // Tinggi dinamis agar pas
+        int h = 60 + (players.size() * 75) + 20;
+        return new Dimension(360, h);
     }
 
     @Override
@@ -38,80 +56,87 @@ public class PlayerPanel extends JPanel {
         Graphics2D g2 = (Graphics2D) g;
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // 1. GAMBAR BACKGROUND KERTAS TUA / PAPAN
-        g2.setColor(new Color(255, 248, 220, 150)); // Cornsilk transparan
-        g2.fillRoundRect(0, 0, getWidth(), getHeight(), 25, 25);
+        // Gambar Background Panel
+        OceanTheme.drawRPGPanel(g2, 0, 0, getWidth(), getHeight());
 
-        // Border Panel
-        g2.setColor(CowboyTheme.WOOD_DARK);
-        g2.setStroke(new BasicStroke(2));
-        g2.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 25, 25);
+        // Header Text
+        g2.setFont(OceanTheme.FONT_TITLE.deriveFont(18f));
+        g2.setColor(OceanTheme.BORDER_GOLD);
+        String title = "DIVERS SQUAD";
+        int titleW = g2.getFontMetrics().stringWidth(title);
+        g2.drawString(title, (getWidth() - titleW) / 2, 40);
 
-        super.paintComponent(g);
+        // Garis Pembatas Header
+        g2.setColor(new Color(255, 255, 255, 30));
+        g2.drawLine(20, 50, getWidth()-20, 50);
 
-        // 2. HEADER "WANTED LIST"
-        int y = 40;
-        g2.setColor(CowboyTheme.RED_BANDANA);
-        g2.fillRect(15, 10, 6, 25); // Strip merah di kiri
+        // Konfigurasi List Pemain
+        int startY = 65;
+        int slotH = 65;
+        int gap = 10;
 
-        g2.setColor(CowboyTheme.WOOD_DARK);
-        g2.setFont(CowboyTheme.FONT_TITLE.deriveFont(22f));
-        g2.drawString("GUNSLINGERS", 30, 30);
-
-        // 3. DAFTAR PEMAIN
         List<Player> list = new ArrayList<>(players);
-        Collections.reverse(list);
+        Collections.reverse(list); // Balik urutan agar Player 1 di atas (opsional)
 
-        int count = 0;
         for (Player p : list) {
-            boolean active = (p == current);
-            int cardH = 75;
+            boolean isActive = (p == current);
+            int x = 20;
+            int w = getWidth() - 40;
 
-            // --- Background Kartu Pemain ---
-            if (active) {
-                // Jika Giliran Aktif: Warna Emas/Kayu Terang
-                g2.setColor(new Color(222, 184, 135)); // Burlywood
-                g2.fillRoundRect(10, y - 5, 340, cardH + 10, 15, 15);
+            // Gambar Slot Latar Belakang
+            OceanTheme.drawSlot(g2, x, startY, w, slotH);
 
-                // Border Tebal
-                g2.setColor(CowboyTheme.GOLD_NUGGET);
-                g2.setStroke(new BasicStroke(3));
-                g2.drawRoundRect(10, y - 5, 340, cardH + 10, 15, 15);
+            // Highlight jika giliran pemain ini
+            if (isActive) {
+                g2.setColor(new Color(255, 215, 0, 40));
+                g2.fillRoundRect(x, startY, w, slotH, 10, 10);
+                g2.setColor(OceanTheme.BORDER_GOLD);
+                g2.setStroke(new BasicStroke(1));
+                g2.drawRoundRect(x, startY, w, slotH, 10, 10);
+            }
+
+            // --- BAGIAN ICON (FIX LOGIC) ---
+            int iconSize = 40;
+            int iconY = startY + (slotH - iconSize)/2;
+            int type = p.getCharacterType();
+
+            // Cek apakah gambar tersedia
+            if (type >= 0 && type < 3 && charIcons[type] != null) {
+                // Gambar PNG
+                g2.drawImage(charIcons[type], x + 12, iconY, iconSize, iconSize, null);
+
+                // Penanda warna kecil (lingkaran) di pojok kanan bawah icon
+                g2.setColor(p.getColor());
+                g2.fillOval(x + 12 + iconSize - 10, iconY + iconSize - 10, 10, 10);
+                g2.setColor(Color.WHITE);
+                g2.setStroke(new BasicStroke(1));
+                g2.drawOval(x + 12 + iconSize - 10, iconY + iconSize - 10, 10, 10);
             } else {
-                // Pasif: Transparan / Pudar
-                g2.setColor(new Color(139, 69, 19, 30)); // Coklat transparan
-                g2.fillRoundRect(15, y, 330, cardH, 15, 15);
+                // FALLBACK: Jika gambar tidak ada, gunakan lingkaran warna biasa
+                g2.setColor(p.getColor());
+                g2.fillOval(x + 12, iconY, iconSize, iconSize);
+                g2.setColor(Color.WHITE);
+                g2.setStroke(new BasicStroke(2));
+                g2.drawOval(x + 12, iconY, iconSize, iconSize);
             }
 
-            // --- Avatar (Topi/Warna) ---
-            // Gambar lingkaran warna pemain
-            g2.setColor(p.getColor());
-            g2.fillOval(30, y + 12, 50, 50);
+            // --- TEKS NAMA & SKOR ---
+            g2.setFont(OceanTheme.FONT_TEXT);
+            g2.setColor(Color.WHITE);
+            g2.drawString(p.getName(), x + 60, startY + 25);
 
-            // Outline Avatar
-            g2.setColor(CowboyTheme.WOOD_DARK);
-            g2.setStroke(new BasicStroke(2));
-            g2.drawOval(30, y + 12, 50, 50);
+            g2.setFont(new Font("Verdana", Font.PLAIN, 10));
+            g2.setColor(new Color(180, 180, 180));
+            g2.drawString("Pos: " + p.getPosition() + " | Pearls: " + p.getScore(), x + 60, startY + 45);
 
-            // --- Nama Pemain ---
-            g2.setFont(CowboyTheme.FONT_TEXT.deriveFont(Font.BOLD, 16f));
-            g2.setColor(CowboyTheme.WOOD_DARK);
-            g2.drawString(p.getName(), 95, y + 30);
-
-            // --- Status (Posisi & Koin) ---
-            g2.setFont(CowboyTheme.FONT_TEXT.deriveFont(12f));
-            g2.setColor(new Color(101, 67, 33)); // Coklat Tua
-            g2.drawString("POS: " + p.getPosition() + "  |  GOLD: $" + p.getScore(), 95, y + 55);
-
-            // --- Indikator Aktif ---
-            if (active) {
-                g2.setColor(CowboyTheme.RED_BANDANA);
-                g2.setFont(new Font("Arial", Font.BOLD, 10));
-                g2.drawString("★ SHOOTING NOW", 230, y + 25);
+            // Tanda "YOUR TURN"
+            if (isActive) {
+                g2.setColor(OceanTheme.BUTTON_ORANGE);
+                g2.setFont(new Font("Arial", Font.BOLD, 9));
+                g2.drawString("YOUR TURN", x + w - 65, startY + 35);
             }
 
-            y += 90;
-            count++;
+            startY += slotH + gap;
         }
     }
 }

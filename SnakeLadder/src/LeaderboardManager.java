@@ -1,8 +1,7 @@
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class LeaderboardManager {
-    // Maps statis ini akan menyimpan data selama aplikasi belum ditutup
+    // Menyimpan skor sementara sesi ini
     private static Map<String, Integer> globalScoreMap = new HashMap<>();
     private static Map<String, Integer> globalWinMap = new HashMap<>();
 
@@ -15,18 +14,29 @@ public class LeaderboardManager {
         globalScoreMap.putIfAbsent(playerName, 0);
     }
 
-    // [BARU] Mengambil skor pemain tertentu (untuk inisialisasi saat Replay)
     public static int getScore(String playerName) {
         return globalScoreMap.getOrDefault(playerName, 0);
     }
 
-    // [MODIFIKASI] Mengambil Top 3 Skor Tertinggi
+    // --- REVISI: MENGGUNAKAN PRIORITY QUEUE SESUAI REQUEST ---
     public static List<Map.Entry<String, Integer>> getTop3Scores() {
-        return globalScoreMap.entrySet().stream()
-                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed()) // Urutkan Besar ke Kecil
-                .limit(3) // Ambil 3 teratas
-                .collect(Collectors.toList());
-    }
+        // 1. Buat PriorityQueue (Max-Heap) berdasarkan Skor Terbesar
+        PriorityQueue<Map.Entry<String, Integer>> pq = new PriorityQueue<>(
+                (a, b) -> b.getValue() - a.getValue() // Logic: Yang skornya besar di prioritas atas
+        );
 
-    public static Map<String, Integer> getWins() { return globalWinMap; }
+        // 2. Masukkan semua data dari Map ke PriorityQueue
+        pq.addAll(globalScoreMap.entrySet());
+
+        // 3. Ambil (Poll) 3 teratas dari Queue
+        List<Map.Entry<String, Integer>> top3 = new ArrayList<>();
+        int count = 0;
+
+        while (!pq.isEmpty() && count < 3) {
+            top3.add(pq.poll()); // Mengambil elemen prioritas tertinggi
+            count++;
+        }
+
+        return top3;
+    }
 }

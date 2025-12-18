@@ -5,105 +5,92 @@ import java.awt.event.ActionListener;
 
 public class ControlPanel extends JPanel {
     private final DiceFacePanel dicePanel;
-    private final JLabel dirLabel, statusLabel;
+    private final JLabel statusLabel;
     private final JTextArea pathArea;
-    private final CowboyTheme.Button rollBtn;
+    private final OceanTheme.Button rollBtn;
 
     public ControlPanel(ActionListener onRoll) {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setOpaque(false);
-        // Padding agar konten tidak mepet border background baru
-        setBorder(new EmptyBorder(25, 20, 25, 20));
-        setPreferredSize(new Dimension(380, 420));
+        // Padding diperkecil
+        setBorder(new EmptyBorder(20, 20, 20, 20));
 
         // JUDUL
-        JLabel title = new JLabel("CONTROLS");
-        title.setFont(CowboyTheme.FONT_TITLE.deriveFont(28f));
-        title.setForeground(new Color(60, 30, 10)); // Coklat Sangat Tua
+        JLabel title = new JLabel("ACTION LOG");
+        title.setFont(OceanTheme.FONT_TITLE.deriveFont(20f)); // Font kecil
+        title.setForeground(OceanTheme.BORDER_GOLD);
         title.setAlignmentX(CENTER_ALIGNMENT);
         add(title);
-        add(Box.createVerticalStrut(25));
 
-        // AREA DADU
-        JPanel diceBox = new JPanel(new FlowLayout(FlowLayout.CENTER, 30, 0));
-        diceBox.setOpaque(false);
+        add(Box.createVerticalStrut(15));
 
+        // DADU (Diperkecil)
+        JPanel diceContainer = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        diceContainer.setOpaque(false);
         dicePanel = new DiceFacePanel();
-        dicePanel.setPreferredSize(new Dimension(100, 100));
-        diceBox.add(dicePanel);
+        dicePanel.setPreferredSize(new Dimension(70, 70)); // Ukuran dadu 70x70
+        diceContainer.add(dicePanel);
+        add(diceContainer);
 
-        dirLabel = new JLabel("?", SwingConstants.CENTER);
-        dirLabel.setFont(new Font("Rockwell", Font.BOLD, 60));
-        dirLabel.setForeground(new Color(101, 67, 33));
-        diceBox.add(dirLabel);
-
-        add(diceBox);
-        add(Box.createVerticalStrut(30));
+        add(Box.createVerticalStrut(10));
 
         // TOMBOL
-        rollBtn = new CowboyTheme.Button("ROLL DICE");
+        rollBtn = new OceanTheme.Button("ROLL DICE");
         rollBtn.setAlignmentX(CENTER_ALIGNMENT);
-        rollBtn.setMaximumSize(new Dimension(220, 60));
+        rollBtn.setMaximumSize(new Dimension(160, 45)); // Tombol lebih ramping
         rollBtn.addActionListener(onRoll);
         add(rollBtn);
 
-        add(Box.createVerticalStrut(25));
+        add(Box.createVerticalStrut(10));
 
         // STATUS
         statusLabel = new JLabel("WAITING...", SwingConstants.CENTER);
-        statusLabel.setFont(CowboyTheme.FONT_TEXT.deriveFont(Font.BOLD, 14f));
-        statusLabel.setForeground(new Color(60, 30, 10));
+        statusLabel.setFont(OceanTheme.FONT_TEXT);
+        statusLabel.setForeground(Color.WHITE);
         statusLabel.setAlignmentX(CENTER_ALIGNMENT);
         add(statusLabel);
 
         add(Box.createVerticalStrut(10));
 
-        // LOG AREA
+        /// --- LOG AREA (Perbaikan Tampilan) ---
+        // Label Judul Kecil untuk kotak hitam
+        JLabel logLabel = new JLabel("ADVENTURE LOG");
+        logLabel.setFont(new Font("Verdana", Font.BOLD, 10));
+        logLabel.setForeground(new Color(180, 180, 180)); // Abu terang
+        logLabel.setAlignmentX(CENTER_ALIGNMENT);
+        add(logLabel);
+
+        add(Box.createVerticalStrut(5));
+
         pathArea = new JTextArea(3, 20);
         pathArea.setEditable(false);
         pathArea.setLineWrap(true);
-        pathArea.setFont(new Font("Courier New", Font.BOLD, 12));
-        pathArea.setBackground(new Color(255, 250, 240)); // Kertas Putih Gading
-        pathArea.setForeground(Color.BLACK);
-        pathArea.setBorder(BorderFactory.createLineBorder(new Color(160, 110, 60), 2));
+        pathArea.setWrapStyleWord(true);
+        pathArea.setFont(new Font("Monospaced", Font.PLAIN, 11));
+
+        // Ubah warna background agar tidak hitam pekat, tapi biru gelap transparan
+        pathArea.setBackground(new Color(0, 0, 0, 80));
+        pathArea.setForeground(Color.WHITE); // Teks Putih
 
         JScrollPane scroll = new JScrollPane(pathArea);
-        scroll.setBorder(null);
-        scroll.setMaximumSize(new Dimension(320, 70));
+        scroll.setBorder(BorderFactory.createLineBorder(OceanTheme.BORDER_GOLD, 1)); // Border Emas
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
         add(scroll);
     }
 
-    @Override
-    protected void paintComponent(Graphics g) {
-        Graphics2D g2 = (Graphics2D) g;
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-        // GAMBAR BACKGROUND KERTAS TUA / KULIT DI BELAKANG KONTROL
-        // Ini memisahkan kontrol dari background kayu panel kanan
-        g2.setColor(new Color(235, 215, 180)); // Warna Kulit Terang / Tan
-        g2.fillRoundRect(0, 0, getWidth(), getHeight(), 30, 30);
-
-        // Border Hiasan
-        g2.setColor(new Color(160, 82, 45)); // Sienna
-        g2.setStroke(new BasicStroke(3));
-        g2.drawRoundRect(5, 5, getWidth()-10, getHeight()-10, 25, 25);
-
-        // Paku di sudut
-        g2.setColor(new Color(60, 30, 10));
-        g2.fillOval(15, 15, 8, 8);
-        g2.fillOval(getWidth()-23, 15, 8, 8);
-        g2.fillOval(15, getHeight()-23, 8, 8);
-        g2.fillOval(getWidth()-23, getHeight()-23, 8, 8);
+    public void updateDice(int val) { dicePanel.setValue(val); }
+    public void setStatus(String t, Color c) {
+        statusLabel.setText(t);
+        if (c.equals(OceanTheme.CORAL_ORANGE)) statusLabel.setForeground(Color.RED);
+        else statusLabel.setForeground(OceanTheme.PEARL_GOLD);
     }
-
-    // ... (Sisa method updateDice, setStatus dll SAMA) ...
-    public void updateDice(int val, int mod) {
-        dicePanel.setValue(val);
-        dirLabel.setText(mod == 1 ? "▲" : "▼");
-        dirLabel.setForeground(mod == 1 ? new Color(34, 139, 34) : new Color(178, 34, 34));
-    }
-
-    public void setStatus(String t, Color c) { statusLabel.setText(t); statusLabel.setForeground(c); }
     public void setPath(String t) { pathArea.setText(t); }
     public void toggleBtn(boolean b) { rollBtn.setEnabled(b); }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+        OceanTheme.drawRPGPanel((Graphics2D)g, 0, 0, getWidth(), getHeight());
+        super.paintComponent(g);
+    }
 }

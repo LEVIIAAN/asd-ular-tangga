@@ -10,30 +10,29 @@ public class SnakeLadderGame extends JFrame {
     private final Stack<Player> playerStack;
     private final Dice dice;
     private final SoundManager sound;
-    private final List<String> originalNames;
 
     private BoardPanel boardPanel;
     private ControlPanel controlPanel;
     private PlayerPanel playerPanel;
     private Player currentPlayer;
 
-    public SnakeLadderGame(List<String> names) {
-        this.originalNames = names;
-        this.board = new GameBoard(8, 8);
+    // [UBAH] Konstruktor sekarang menerima List<Player> yang sudah jadi
+    public SnakeLadderGame(List<Player> playersInput) {
+        this.board = new GameBoard(6, 10);
         this.dice = new Dice();
         this.sound = new SoundManager();
         this.playerStack = new Stack<>();
 
-        // [UBAH] Gunakan Palet Warna Cowboy
-        Color[] pal = CowboyTheme.PLAYER_COLORS;
+        // [PENTING] Loop terbalik agar urutan giliran benar
+        for (int i = playersInput.size()-1; i >= 0; i--) {
+            Player p = playersInput.get(i);
 
-        for (int i = names.size()-1; i >= 0; i--) {
-            String pName = names.get(i);
-            Player p = new Player(pName, pal[i % pal.length]);
-            int savedScore = LeaderboardManager.getScore(pName);
-            p.setScore(savedScore);
+            // Reset posisi & ambil skor lama, TAPI jangan buat object baru (new Player)
+            p.setPosition(1);
+            p.setScore(LeaderboardManager.getScore(p.getName()));
+
             playerStack.push(p);
-            LeaderboardManager.addScore(pName, 0);
+            LeaderboardManager.addScore(p.getName(), 0);
         }
 
         initUI();
@@ -41,72 +40,64 @@ public class SnakeLadderGame extends JFrame {
     }
 
     private void initUI() {
-        setTitle("Wild West Quest");
+        setTitle("Ocean Adventure: Treasure Hunt");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
+        getContentPane().setBackground(OceanTheme.WATER_CYAN);
 
-        // Background utama tetap pasir untuk menyatukan tepi-tepi yang mungkin kosong
-        getContentPane().setBackground(CowboyTheme.BG_SAND);
+        // --- [MULAI KODE BARU: TOMBOL RESTART] ---
+        JPanel topBar = new JPanel(new BorderLayout());
+        topBar.setOpaque(false);
+        topBar.setBorder(new EmptyBorder(5, 10, 0, 10));
 
-        // --- HEADER ---
-        // (Kode Header TETAP SAMA seperti sebelumnya, tidak perlu diubah)
-        JPanel header = new JPanel() {
-            // ... isi paintComponent sama ...
-        };
-        header.setPreferredSize(new Dimension(800, 90));
-        header.setBackground(CowboyTheme.BG_SAND);
-        header.setBorder(new EmptyBorder(10, 0, 10, 0));
-        add(header, BorderLayout.NORTH);
+        JButton btnRestart = new JButton("↻");
+        btnRestart.setFont(new Font("Segoe UI Symbol", Font.BOLD, 24));
+        btnRestart.setForeground(Color.WHITE);
+        btnRestart.setBackground(OceanTheme.BUTTON_ORANGE);
+        btnRestart.setFocusPainted(false);
+        btnRestart.setBorder(BorderFactory.createEmptyBorder(2, 15, 2, 15));
+
+        // Aksi Restart: Tutup game -> Buka baru dengan list pemain yang sama
+        btnRestart.addActionListener(e -> {
+            int choice = JOptionPane.showConfirmDialog(this,
+                    "Are you sure you want to restart?", "Restart", JOptionPane.YES_NO_OPTION);
+            if (choice == JOptionPane.YES_OPTION) {
+                sound.stopBgm();
+                dispose();
+                List<Player> currentList = new ArrayList<>(playerStack);
+                Collections.reverse(currentList);
+                new SnakeLadderGame(currentList).setVisible(true);
+            }
+        });
+
+        JPanel rightCorner = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        rightCorner.setOpaque(false);
+        rightCorner.add(btnRestart);
+        topBar.add(rightCorner, BorderLayout.EAST);
+        add(topBar, BorderLayout.NORTH);
 
         // --- BOARD PANEL ---
         boardPanel = new BoardPanel(board, playerStack);
-
-        // Wrapper untuk Peta agar punya bingkai sendiri
         JPanel boardWrapper = new JPanel(new BorderLayout());
-        boardWrapper.setBackground(CowboyTheme.WOOD_DARK); // Bingkai gelap di sekitar peta
+        boardWrapper.setBackground(OceanTheme.WATER_DEEP);
         boardWrapper.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(60, 40, 20), 8), // Bingkai Luar Tebal
-                BorderFactory.createEmptyBorder(5, 5, 5, 5) // Padding
+                BorderFactory.createLineBorder(OceanTheme.BUBBLE_BLUE, 4),
+                BorderFactory.createEmptyBorder(4, 4, 4, 4)
         ));
         boardWrapper.add(boardPanel, BorderLayout.CENTER);
         add(boardWrapper, BorderLayout.CENTER);
 
-        // --- RIGHT PANEL (PANEL KANAN BARU) ---
-        JPanel rightPanel = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                Graphics2D g2 = (Graphics2D) g;
-                // Gambar tekstur kayu vertikal sebagai background panel kanan
-                CowboyTheme.drawWoodBackground(g2, 0, 0, getWidth(), getHeight(), new Color(139, 90, 43)); // Kayu Medium
-
-                // Garis pemisah vertikal di kiri
-                g2.setColor(new Color(60, 30, 10));
-                g2.fillRect(0, 0, 10, getHeight());
-
-                // Efek paku di sepanjang garis pemisah
-                g2.setColor(Color.DARK_GRAY);
-                for(int i=20; i<getHeight(); i+=60) g2.fillOval(2, i, 6, 6);
-            }
-        };
+        // --- RIGHT PANEL ---
+        JPanel rightPanel = new JPanel();
         rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
-        rightPanel.setBorder(new EmptyBorder(20, 25, 20, 25)); // Padding isi
+        rightPanel.setBackground(OceanTheme.SIDEBAR_BG);
+        rightPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
 
-        // 1. Player Panel
         playerPanel = new PlayerPanel(playerStack);
-        JScrollPane scrollWrapper = new JScrollPane(playerPanel);
-        scrollWrapper.setPreferredSize(new Dimension(380, 280)); // Tinggi dikurangi sedikit
-        scrollWrapper.setOpaque(false);
-        scrollWrapper.getViewport().setOpaque(false);
-        scrollWrapper.setBorder(null);
-        scrollWrapper.getVerticalScrollBar().setUnitIncrement(16);
+        rightPanel.add(playerPanel);
+        rightPanel.add(Box.createVerticalStrut(15));
 
-        rightPanel.add(scrollWrapper);
-        rightPanel.add(Box.createVerticalStrut(30)); // Jarak antar panel
-
-        // 2. Control Panel
         controlPanel = new ControlPanel(e -> playTurn());
-        // Control panel tidak perlu background khusus lagi karena rightPanel sudah kayu
         rightPanel.add(controlPanel);
 
         add(rightPanel, BorderLayout.EAST);
@@ -119,8 +110,7 @@ public class SnakeLadderGame extends JFrame {
     private void refreshUI() {
         currentPlayer = playerStack.peek();
         playerPanel.setCurrent(currentPlayer);
-        // [UBAH] Warna status jadi Kayu Gelap
-        controlPanel.setStatus("TURN: " + currentPlayer.getName().toUpperCase(), CowboyTheme.WOOD_DARK);
+        controlPanel.setStatus("DIVER: " + currentPlayer.getName().toUpperCase(), OceanTheme.WATER_DEEP);
         controlPanel.toggleBtn(true);
         controlPanel.setPath("");
         boardPanel.clearPath();
@@ -129,13 +119,12 @@ public class SnakeLadderGame extends JFrame {
     private void playTurn() {
         controlPanel.toggleBtn(false);
         controlPanel.setStatus("ROLLING...", Color.GRAY);
-        // [CATATAN] Pastikan file roll.wav ada di folder luar proyek
         sound.playSfx("roll.wav");
 
         final int[] count = {0};
         javax.swing.Timer t = new javax.swing.Timer(80, e -> {
-            if (count[0]++ < 12) {
-                // Animation frame
+            if (count[0]++ < 10) {
+                controlPanel.updateDice(new Random().nextInt(6)+1);
             } else {
                 ((javax.swing.Timer)e.getSource()).stop();
                 finalizeTurn();
@@ -145,17 +134,19 @@ public class SnakeLadderGame extends JFrame {
     }
 
     private void finalizeTurn() {
-        int d1 = dice.rollMain();
-        int d2 = dice.rollModifier();
-        controlPanel.updateDice(d1, d2);
-
-        if(d2 == -1) sound.playSfx("backward.wav");
-
-        int steps = d1 * d2;
+        int roll = dice.rollMain();
+        controlPanel.updateDice(roll);
         int currentPos = currentPlayer.getPosition();
-        int target = Math.max(1, Math.min(board.getTotalSquares(), currentPos + steps));
+        int target = currentPos + roll;
+        int maxPos = board.getTotalSquares();
 
-        animateMove(target, () -> checkEvents(target));
+        if (target >= maxPos) {
+            target = maxPos;
+            controlPanel.setPath("Final Dash to Treasure!");
+        }
+
+        final int finalTarget = target;
+        animateMove(finalTarget, () -> checkEvents(finalTarget));
     }
 
     private void animateMove(int targetPos, Runnable onComplete) {
@@ -166,7 +157,7 @@ public class SnakeLadderGame extends JFrame {
         }
 
         int direction = Integer.compare(targetPos, startPos);
-        javax.swing.Timer stepTimer = new javax.swing.Timer(300, null);
+        javax.swing.Timer stepTimer = new javax.swing.Timer(250, null);
         stepTimer.addActionListener(e -> {
             int current = currentPlayer.getPosition();
             if (current == targetPos) {
@@ -187,16 +178,15 @@ public class SnakeLadderGame extends JFrame {
             currentPlayer.addScore(pts);
             LeaderboardManager.addScore(currentPlayer.getName(), pts);
             sound.playSfx("coin.wav");
-            // [UBAH] Warna status Emas
-            controlPanel.setStatus("FOUND GOLD: " + pts + "!", CowboyTheme.GOLD_NUGGET);
+            controlPanel.setStatus("FOUND PEARLS: " + pts + "!", OceanTheme.CORAL_ORANGE);
         }
 
         if(board.getLinks().containsKey(pos)) {
             int next = board.getLinks().get(pos).getTo();
-            boolean isLadder = next > pos;
-            String msg = isLadder ? "CLIMBING UP!" : "SNAKE BITE!";
-            // [UBAH] Warna status Biru/Merah tema Cowboy
-            controlPanel.setStatus(msg, isLadder ? CowboyTheme.BLUE_DENIM : CowboyTheme.RED_BANDANA);
+            boolean isUp = next > pos;
+            String msg = isUp ? "RIDING THE CURRENT!" : "WHIRLPOOL DOWN!";
+            Color c = isUp ? OceanTheme.WATER_DEEP : OceanTheme.CORAL_ORANGE;
+            controlPanel.setStatus(msg, c);
 
             javax.swing.Timer t = new javax.swing.Timer(800, ev -> {
                 ((javax.swing.Timer)ev.getSource()).stop();
@@ -210,8 +200,10 @@ public class SnakeLadderGame extends JFrame {
 
     private void checkSpecial(int pos) {
         if(board.hasStar(pos)) {
-            controlPanel.setStatus("SHERIFF BADGE: BONUS TURN!", CowboyTheme.GOLD_NUGGET);
-            javax.swing.Timer t = new javax.swing.Timer(1500, e -> {
+            controlPanel.setStatus("MAGIC BUBBLE: BONUS TURN!", OceanTheme.PEARL_GOLD);
+            javax.swing.Timer t = new javax.swing.Timer(1200, e -> {
+                playerStack.pop(); // Keluarkan pemain sekarang dari atas tumpukan
+                playerStack.add(0, currentPlayer); // Masukkan ke paling bawah antrian
                 refreshUI();
                 ((javax.swing.Timer)e.getSource()).stop();
             });
@@ -220,10 +212,9 @@ public class SnakeLadderGame extends JFrame {
         }
 
         if(board.isPrime(pos)) {
-            controlPanel.setStatus("SECRET SHORTCUT FOUND!", CowboyTheme.BLUE_DENIM);
+            controlPanel.setStatus("PRIME SPOT! SHORTCUT!", OceanTheme.WATER_DEEP);
             List<Integer> path = board.findShortestPath(pos, board.getTotalSquares());
             boardPanel.updatePath(path);
-            controlPanel.setPath("SHORTCUT:\n" + path.toString());
         }
 
         if(currentPlayer.hasWon(board.getTotalSquares())) {
@@ -233,7 +224,7 @@ public class SnakeLadderGame extends JFrame {
             return;
         }
 
-        javax.swing.Timer t = new javax.swing.Timer(1500, e -> {
+        javax.swing.Timer t = new javax.swing.Timer(1200, e -> {
             playerStack.pop();
             playerStack.add(0, currentPlayer);
             refreshUI();
@@ -243,52 +234,38 @@ public class SnakeLadderGame extends JFrame {
     }
 
     private void showLeaderboard() {
-        JDialog d = new JDialog(this, "Yeehaw! Winner!", true);
+        JDialog d = new JDialog(this, "Ocean Treasure Found!", true);
         d.setSize(500, 600);
         d.setLocationRelativeTo(this);
         d.setUndecorated(true);
 
         JPanel p = new JPanel();
         p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-        p.setBackground(CowboyTheme.BG_SAND);
-        p.setBorder(new LineBorder(CowboyTheme.WOOD_DARK, 5));
+        p.setBackground(OceanTheme.WATER_CYAN);
+        p.setBorder(new LineBorder(OceanTheme.WATER_DEEP, 5));
 
-        JLabel lbl = new JLabel("🏆 TOP GUNSLINGERS 🏆");
-        lbl.setFont(CowboyTheme.FONT_TITLE);
-        lbl.setForeground(CowboyTheme.WOOD_DARK);
+        JLabel lbl = new JLabel("🏆 TOP DIVERS 🏆");
+        lbl.setFont(OceanTheme.FONT_TITLE);
+        lbl.setForeground(Color.WHITE);
         lbl.setAlignmentX(CENTER_ALIGNMENT);
         p.add(Box.createVerticalStrut(20));
         p.add(lbl);
-        p.add(Box.createVerticalStrut(30));
 
         List<Map.Entry<String, Integer>> top3 = LeaderboardManager.getTop3Scores();
 
         int rank = 1;
         for (Map.Entry<String, Integer> entry : top3) {
-            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            row.setOpaque(false);
-            row.setMaximumSize(new Dimension(400, 50));
-
-            JLabel text = new JLabel(rank + ". " + entry.getKey() + " - $" + entry.getValue());
-            text.setFont(CowboyTheme.FONT_TEXT.deriveFont(20f));
-            text.setForeground(CowboyTheme.WOOD_DARK);
-
-            row.add(text);
-            p.add(row);
+            JLabel text = new JLabel(rank + ". " + entry.getKey() + " - " + entry.getValue() + " Pearls");
+            text.setFont(OceanTheme.FONT_TEXT.deriveFont(20f));
+            text.setForeground(OceanTheme.WATER_DEEP);
+            text.setAlignmentX(CENTER_ALIGNMENT);
+            p.add(Box.createVerticalStrut(10));
+            p.add(text);
             rank++;
         }
 
         p.add(Box.createVerticalStrut(40));
-
-        CowboyTheme.Button btnReplay = new CowboyTheme.Button("PLAY AGAIN");
-        btnReplay.setAlignmentX(CENTER_ALIGNMENT);
-        btnReplay.addActionListener(e -> {
-            d.dispose();
-            dispose();
-            new SnakeLadderGame(originalNames).setVisible(true);
-        });
-
-        CowboyTheme.Button btnMenu = new CowboyTheme.Button("MAIN MENU");
+        OceanTheme.Button btnMenu = new OceanTheme.Button("MAIN MENU");
         btnMenu.setAlignmentX(CENTER_ALIGNMENT);
         btnMenu.addActionListener(e -> {
             d.dispose();
@@ -296,165 +273,131 @@ public class SnakeLadderGame extends JFrame {
             showMainMenu();
         });
 
-        p.add(btnReplay);
-        p.add(Box.createVerticalStrut(10));
         p.add(btnMenu);
-
         d.add(p);
         d.setVisible(true);
     }
 
     // --- MAIN MENU & ENTRY POINT ---
     public static void main(String[] args) {
-        System.setProperty("awt.useSystemAAFontSettings", "on");
         SwingUtilities.invokeLater(SnakeLadderGame::showMainMenu);
     }
 
     private static void showMainMenu() {
-        JFrame frame = new JFrame("Wild West Quest");
-        frame.setSize(500, 480);
+        JFrame frame = new JFrame("Ocean Adventure");
+        frame.setSize(500, 500);
         frame.setLocationRelativeTo(null);
         frame.setDefaultCloseOperation(EXIT_ON_CLOSE);
 
-        JPanel mainPanel = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                Graphics2D g2 = (Graphics2D) g;
-                g2.setColor(CowboyTheme.BG_SAND);
-                g2.fillRect(0, 0, getWidth(), getHeight());
-
-                // Efek Kertas Tua (Bintik)
-                g2.setColor(new Color(0,0,0,20));
-                for(int i=0; i<300; i++) {
-                    int x = (int)(Math.random()*getWidth());
-                    int y = (int)(Math.random()*getHeight());
-                    g2.fillOval(x, y, 2, 2);
-                }
-            }
-        };
+        JPanel mainPanel = new JPanel();
+        mainPanel.setBackground(OceanTheme.WATER_CYAN);
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
         mainPanel.setBorder(new EmptyBorder(40, 40, 40, 40));
 
-        JLabel title = new JLabel("WILD WEST QUEST");
-        title.setFont(CowboyTheme.FONT_TITLE);
-        title.setForeground(CowboyTheme.WOOD_DARK);
+        JLabel title = new JLabel("OCEAN ADVENTURE");
+        title.setFont(OceanTheme.FONT_TITLE);
+        title.setForeground(OceanTheme.WATER_DEEP);
         title.setAlignmentX(CENTER_ALIGNMENT);
 
-        JLabel subtitle = new JLabel("/// WANTED: BRAVE SOULS ///");
-        subtitle.setFont(CowboyTheme.FONT_TEXT);
-        subtitle.setForeground(CowboyTheme.RED_BANDANA);
-        subtitle.setAlignmentX(CENTER_ALIGNMENT);
-
-        // Selector Pemain
         JPanel selector = new JPanel(new FlowLayout());
         selector.setOpaque(false);
         JLabel numLabel = new JLabel("2");
-        numLabel.setFont(new Font("Rockwell", Font.BOLD, 50));
-        numLabel.setForeground(CowboyTheme.WOOD_DARK);
+        numLabel.setFont(new Font("Arial", Font.BOLD, 50));
+        numLabel.setForeground(Color.WHITE);
 
-        CowboyTheme.Button btnMin = new CowboyTheme.Button("-");
-        btnMin.setPreferredSize(new Dimension(50, 50));
+        OceanTheme.Button btnMin = new OceanTheme.Button("-");
         btnMin.addActionListener(e -> {
             int n = Integer.parseInt(numLabel.getText());
             if(n>2) numLabel.setText(""+(n-1));
         });
-
-        CowboyTheme.Button btnPlus = new CowboyTheme.Button("+");
-        btnPlus.setPreferredSize(new Dimension(50, 50));
+        OceanTheme.Button btnPlus = new OceanTheme.Button("+");
         btnPlus.addActionListener(e -> {
             int n = Integer.parseInt(numLabel.getText());
-            if(n<10) numLabel.setText(""+(n+1));
+            if(n<4) numLabel.setText(""+(n+1));
         });
 
-        selector.add(btnMin);
-        selector.add(numLabel);
-        selector.add(btnPlus);
+        selector.add(btnMin); selector.add(numLabel); selector.add(btnPlus);
 
-        CowboyTheme.Button btnStart = new CowboyTheme.Button("START ADVENTURE");
+        OceanTheme.Button btnStart = new OceanTheme.Button("START DIVE");
         btnStart.setAlignmentX(CENTER_ALIGNMENT);
-        btnStart.setMaximumSize(new Dimension(250, 60));
+        btnStart.setPreferredSize(new Dimension(200, 60));
+
+        // [BARU] Menuju ke Menu Pemilihan Karakter
         btnStart.addActionListener(e -> {
             frame.dispose();
-            showNameInput(Integer.parseInt(numLabel.getText()));
+            showCharacterSelection(2); // Ganti logika ini sesuai UI Anda
         });
 
         mainPanel.add(title);
-        mainPanel.add(Box.createVerticalStrut(10));
-        mainPanel.add(subtitle);
-        mainPanel.add(Box.createVerticalStrut(40));
+        mainPanel.add(Box.createVerticalStrut(50));
         mainPanel.add(selector);
-        mainPanel.add(Box.createVerticalStrut(40));
+        mainPanel.add(Box.createVerticalStrut(50));
         mainPanel.add(btnStart);
-
         frame.add(mainPanel);
         frame.setVisible(true);
     }
 
-    private static void showNameInput(int n) {
-        JDialog d = new JDialog((Frame)null, "Who are you, stranger?", true);
-        int height = Math.min(600, 200 + (n * 70));
-        d.setSize(450, height);
+    // [BARU] MENU POP-UP UNTUK MEMILIH KARAKTER + NAMA
+    private static void showCharacterSelection(int n) {
+        JDialog d = new JDialog((Frame)null, "Assemble Your Squad", true);
+        d.setSize(550, 500);
         d.setLocationRelativeTo(null);
 
         JPanel p = new JPanel();
-        p.setLayout(new BorderLayout()); // Layout Utama Border
-        p.setBackground(CowboyTheme.BG_SAND);
-        p.setBorder(new EmptyBorder(20, 20, 20, 20));
+        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+        p.setBackground(OceanTheme.SIDEBAR_BG); // Pastikan warna ini ada di OceanTheme
 
-        // Judul
-        JLabel title = new JLabel("ENTER NAMES", SwingConstants.CENTER);
-        title.setFont(CowboyTheme.FONT_TITLE.deriveFont(24f));
-        title.setForeground(CowboyTheme.WOOD_DARK);
-        p.add(title, BorderLayout.NORTH);
-
-        // Scrollable Input
-        JPanel inputs = new JPanel();
-        inputs.setLayout(new BoxLayout(inputs, BoxLayout.Y_AXIS));
-        inputs.setBackground(CowboyTheme.BG_SAND);
-
-        List<JTextField> tfs = new ArrayList<>();
+        java.util.List<PlayerInputPanel> inputs = new ArrayList<>();
         for(int i=0; i<n; i++) {
-            JPanel row = new JPanel(new BorderLayout(10,0));
-            row.setOpaque(false);
-            row.setMaximumSize(new Dimension(400, 40));
-
-            JLabel num = new JLabel((i+1)+".");
-            num.setFont(CowboyTheme.FONT_NUM);
-
-            JTextField tf = new JTextField("Cowboy " + (i+1));
-            tf.setBackground(new Color(245, 230, 210));
-            tf.setBorder(BorderFactory.createLineBorder(CowboyTheme.WOOD_DARK));
-            tf.setFont(CowboyTheme.FONT_TEXT);
-
-            tfs.add(tf);
-            row.add(num, BorderLayout.WEST);
-            row.add(tf, BorderLayout.CENTER);
-
-            inputs.add(row);
-            inputs.add(Box.createVerticalStrut(15));
+            PlayerInputPanel panel = new PlayerInputPanel(i+1);
+            inputs.add(panel);
+            p.add(panel);
+            p.add(Box.createVerticalStrut(10));
         }
 
-        JScrollPane scroll = new JScrollPane(inputs);
-        scroll.setBorder(null);
-        scroll.getViewport().setBackground(CowboyTheme.BG_SAND);
-        p.add(scroll, BorderLayout.CENTER);
-
-        // Tombol Start
-        JPanel btnPanel = new JPanel();
-        btnPanel.setOpaque(false);
-        CowboyTheme.Button btn = new CowboyTheme.Button("RIDE ON!");
-        btn.setPreferredSize(new Dimension(200, 50));
+        OceanTheme.Button btn = new OceanTheme.Button("LET'S DIVE!");
+        btn.setAlignmentX(Component.CENTER_ALIGNMENT);
         btn.addActionListener(e -> {
-            List<String> names = new ArrayList<>();
-            for(JTextField tf : tfs) names.add(tf.getText());
-            d.dispose();
-            new SnakeLadderGame(names).setVisible(true);
-        });
-        btnPanel.add(btn);
-        p.add(btnPanel, BorderLayout.SOUTH);
+            java.util.List<Player> players = new ArrayList<>();
+            Color[] pal = OceanTheme.PLAYER_COLORS;
 
+            for(int i=0; i<inputs.size(); i++) {
+                PlayerInputPanel input = inputs.get(i);
+                // MEMBUAT PLAYER DENGAN TIPE KARAKTER YANG DIPILIH
+                players.add(new Player(
+                        input.getNameField().getText(),
+                        pal[i % pal.length],
+                        input.getSelectedCharType() // Mengambil int 0/1/2
+                ));
+            }
+            d.dispose();
+            new SnakeLadderGame(players).setVisible(true);
+        });
+
+        p.add(Box.createVerticalStrut(20));
+        p.add(btn);
         d.add(p);
         d.setVisible(true);
+    }
+
+    // Helper Panel untuk Input per Player
+    static class PlayerInputPanel extends JPanel {
+        private JTextField nameField;
+        private JComboBox<String> charSelector;
+
+        public PlayerInputPanel(int num) {
+            setLayout(new GridLayout(1, 2, 10, 0));
+            setOpaque(false);
+
+            nameField = new JTextField("Diver " + num);
+            String[] chars = {"🐬 Dolphin", "🐢 Turtle", "🚁 Submarine"};
+            charSelector = new JComboBox<>(chars);
+
+            add(nameField);
+            add(charSelector);
+        }
+
+        public JTextField getNameField() { return nameField; }
+        public int getSelectedCharType() { return charSelector.getSelectedIndex(); }
     }
 }

@@ -6,9 +6,13 @@ public class Player {
     private int position;
     private int score;
 
-    public Player(String name, Color color) {
+    // MENYIMPAN TIPE: 0=Dolphin, 1=Turtle, 2=Submarine
+    private final int characterType;
+
+    public Player(String name, Color color, int characterType) {
         this.name = name;
         this.color = color;
+        this.characterType = characterType;
         this.position = 1;
         this.score = 0;
     }
@@ -17,6 +21,7 @@ public class Player {
     public Color getColor() { return color; }
     public int getPosition() { return position; }
     public int getScore() { return score; }
+    public int getCharacterType() { return characterType; } // Method Wajib
 
     public void setPosition(int position) {
         this.position = Math.max(1, position);
