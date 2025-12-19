@@ -12,7 +12,7 @@ public class PlayerPanel extends JPanel {
     private Player current;
 
     // Cache gambar
-    private BufferedImage[] charIcons = new BufferedImage[3];
+    private BufferedImage[] charIcons = new BufferedImage[5];
 
     public PlayerPanel(Stack<Player> players) {
         this.players = players;
@@ -25,17 +25,28 @@ public class PlayerPanel extends JPanel {
     // Method untuk load gambar dari folder assets
     private void loadCharIcons() {
         try {
-            // Pastikan nama file sesuai (huruf kecil)
-            String[] files = {"assets/dolphin.png", "assets/turtle.png", "assets/submarine.png"};
-            for(int i=0; i<3; i++) {
-                File f = new File(files[i]);
-                if(f.exists()) {
-                    charIcons[i] = ImageIO.read(f);
+            // Karena folder assets ada di dalam src, kita pakai tanda '/' di depan
+            String[] files = {
+                    "SnakeLadder/src/assets/dolphin.png",
+                    "SnakeLadder/src/assets/turtle.png",
+                    "SnakeLadder/src/assets/submarine.png",
+                    "SnakeLadder/src/assets/shark.png",
+                    "SnakeLadder/src/assets/octopus.png"
+            };
+
+            // Loop untuk 5 karakter
+            for(int i=0; i<5; i++) {
+                // PENTING: Gunakan getResource karena folder ada di dalam src
+                java.net.URL imgUrl = getClass().getResource(files[i]);
+
+                if (imgUrl != null) {
+                    charIcons[i] = ImageIO.read(imgUrl);
+                } else {
+                    System.out.println("❌ Gagal menemukan gambar: " + files[i]);
                 }
             }
         } catch (Exception e) {
-            // Silent fail: jika gambar gagal load, game tetap jalan (pakai lingkaran warna)
-            System.out.println("Gagal load icon pemain: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -101,7 +112,7 @@ public class PlayerPanel extends JPanel {
             int type = p.getCharacterType();
 
             // Cek apakah gambar tersedia
-            if (type >= 0 && type < 3 && charIcons[type] != null) {
+            if (type >= 0 && type < 5 && charIcons[type] != null) {
                 // Gambar PNG
                 g2.drawImage(charIcons[type], x + 12, iconY, iconSize, iconSize, null);
 

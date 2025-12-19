@@ -313,7 +313,7 @@ public class SnakeLadderGame extends JFrame {
         OceanTheme.Button btnPlus = new OceanTheme.Button("+");
         btnPlus.addActionListener(e -> {
             int n = Integer.parseInt(numLabel.getText());
-            if(n<4) numLabel.setText(""+(n+1));
+            if(n < 5) numLabel.setText(""+(n+1)); // [UBAH] Dari 4 menjadi 5
         });
 
         selector.add(btnMin); selector.add(numLabel); selector.add(btnPlus);
@@ -390,7 +390,15 @@ public class SnakeLadderGame extends JFrame {
             setOpaque(false);
 
             nameField = new JTextField("Diver " + num);
-            String[] chars = {"🐬 Dolphin", "🐢 Turtle", "🚁 Submarine"};
+
+            // [UBAH] Tambahkan karakter baru di sini
+            String[] chars = {
+                    "🐬 Dolphin",
+                    "🐢 Turtle",
+                    "🚁 Submarine",
+                    "🦈 Shark",    // [BARU]
+                    "🐙 Octopus"   // [BARU]
+            };
             charSelector = new JComboBox<>(chars);
 
             add(nameField);

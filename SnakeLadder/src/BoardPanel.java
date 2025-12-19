@@ -16,7 +16,7 @@ public class BoardPanel extends JPanel {
     private final GameBoard board;
     private final Stack<Player> players;
     private List<Integer> highlightPath = new ArrayList<>();
-    private BufferedImage[] charIcons = new BufferedImage[3];
+    private BufferedImage[] charIcons = new BufferedImage[5];
 
     public BoardPanel(GameBoard board, Stack<Player> players) {
         this.board = board;
@@ -25,7 +25,7 @@ public class BoardPanel extends JPanel {
 
         // Load Gambar (Sama seperti sebelumnya)
         try {
-            File absFile = new File("C:\\Users\\Farhan Fitran\\Documents\\Coding Projects\\ASD\\Final Project\\SnakeLadder\\assets\\ocean_bg.png");
+            File absFile = new File("assets/ocean_bg.png");
             File relFile = new File("assets/ocean_bg.png");
             File oldFile = new File("assets/bgfixhd.jpg");
 
@@ -250,11 +250,28 @@ public class BoardPanel extends JPanel {
 
     private void loadCharIcons() {
         try {
-            String[] files = {"assets/dolphin.png", "assets/turtle.png", "assets/submarine.png"};
-            for(int i=0; i<3; i++) {
-                File f = new File(files[i]);
-                if(f.exists()) charIcons[i] = ImageIO.read(f);
+            // Karena folder assets ada di dalam src, kita pakai tanda '/' di depan
+            String[] files = {
+                    "SnakeLadder/src/assets/dolphin.png",
+                    "SnakeLadder/src/assets/turtle.png",
+                    "SnakeLadder/src/assets/submarine.png",
+                    "SnakeLadder/src/assets/shark.png",
+                    "SnakeLadder/src/assets/octopus.png"
+            };
+
+            // Loop untuk 5 karakter
+            for(int i=0; i<5; i++) {
+                // PENTING: Gunakan getResource karena folder ada di dalam src
+                java.net.URL imgUrl = getClass().getResource(files[i]);
+
+                if (imgUrl != null) {
+                    charIcons[i] = ImageIO.read(imgUrl);
+                } else {
+                    System.out.println("❌ Gagal menemukan gambar: " + files[i]);
+                }
             }
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
