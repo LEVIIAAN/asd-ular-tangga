@@ -6,77 +6,294 @@ import java.util.*;
 import java.util.List;
 
 public class SnakeLadderGame extends JFrame {
-    private final GameBoard board;
-    private final Stack<Player> playerStack;
-    private final Dice dice;
-    private final SoundManager sound;
+    // --- LAYOUT MANAGER ---
+    private CardLayout cardLayout;
+    private JPanel mainContainer;
 
+    // --- GAME COMPONENTS ---
+    private GameBoard board;
+    private Stack<Player> playerStack;
+    private Dice dice;
+    private SoundManager sound;
     private BoardPanel boardPanel;
     private ControlPanel controlPanel;
     private PlayerPanel playerPanel;
     private Player currentPlayer;
 
-    // [UBAH] Konstruktor sekarang menerima List<Player> yang sudah jadi
-    public SnakeLadderGame(List<Player> playersInput) {
+    // --- DATA SEMENTARA ---
+    private int selectedPlayerCount = 2; // Default
+
+    public SnakeLadderGame() {
+        initMainFrame();
+        sound = new SoundManager();
+        sound.playBgm("bgm.wav"); // Mulai musik di menu
+    }
+
+    private void initMainFrame() {
+        setTitle("Ocean Adventure: Treasure Hunt");
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setSize(1050, 850); // Ukuran default lebih besar
+        setLocationRelativeTo(null);
+
+        // Setup CardLayout (Untuk pindah-pindah halaman)
+        cardLayout = new CardLayout();
+        mainContainer = new JPanel(cardLayout);
+
+        // TAMBAHKAN HALAMAN-HALAMAN
+        mainContainer.add(createMainMenu(), "MENU");
+        mainContainer.add(createSettingsMenu(), "SETTINGS");
+        // Halaman Selection & Game akan di-generate dinamis saat dibutuhkan,
+        // tapi kita siapkan container-nya.
+
+        add(mainContainer);
+    }
+
+    // ==========================================
+    // PAGE 1: HOME PAGE (MAIN MENU)
+    // ==========================================
+    private JPanel createMainMenu() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(OceanTheme.WATER_CYAN);
+        panel.setBorder(new EmptyBorder(50, 50, 50, 50));
+
+        // 1. Title
+        JLabel title = new JLabel("OCEAN ADVENTURE");
+        title.setFont(OceanTheme.FONT_TITLE.deriveFont(48f));
+        title.setForeground(OceanTheme.WATER_DEEP);
+        title.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel subTitle = new JLabel("TREASURE HUNT");
+        subTitle.setFont(OceanTheme.FONT_TITLE.deriveFont(24f));
+        subTitle.setForeground(OceanTheme.BUTTON_ORANGE);
+        subTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        // 2. Player Count Selector
+        JPanel selectorPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 0));
+        selectorPanel.setOpaque(false);
+        selectorPanel.setMaximumSize(new Dimension(300, 80));
+
+        JLabel lblCount = new JLabel("2");
+        lblCount.setFont(new Font("Arial", Font.BOLD, 60));
+        lblCount.setForeground(Color.WHITE);
+
+        OceanTheme.Button btnMin = new OceanTheme.Button("-");
+        btnMin.setPreferredSize(new Dimension(60, 60));
+        btnMin.addActionListener(e -> {
+            if (selectedPlayerCount > 2) {
+                selectedPlayerCount--;
+                lblCount.setText(String.valueOf(selectedPlayerCount));
+            }
+        });
+
+        OceanTheme.Button btnPlus = new OceanTheme.Button("+");
+        btnPlus.setPreferredSize(new Dimension(60, 60));
+        btnPlus.addActionListener(e -> {
+            if (selectedPlayerCount < 5) {
+                selectedPlayerCount++;
+                lblCount.setText(String.valueOf(selectedPlayerCount));
+            }
+        });
+
+        selectorPanel.add(btnMin);
+        selectorPanel.add(lblCount);
+        selectorPanel.add(btnPlus);
+
+        JLabel lblInfo = new JLabel("PLAYERS");
+        lblInfo.setFont(OceanTheme.FONT_TEXT.deriveFont(16f));
+        lblInfo.setForeground(OceanTheme.WATER_DEEP);
+        lblInfo.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        // 3. Buttons
+        OceanTheme.Button btnStart = new OceanTheme.Button("START GAME");
+        btnStart.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btnStart.setPreferredSize(new Dimension(200, 60));
+        btnStart.addActionListener(e -> showCharacterSelection(selectedPlayerCount));
+
+        OceanTheme.Button btnSettings = new OceanTheme.Button("SETTINGS");
+        btnSettings.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btnSettings.setPreferredSize(new Dimension(200, 50));
+        // Ubah warna tombol settings agar beda dikit (opsional, via override paint kalau mau)
+        btnSettings.addActionListener(e -> cardLayout.show(mainContainer, "SETTINGS"));
+
+        // Layout Assembly
+        panel.add(Box.createVerticalGlue());
+        panel.add(title);
+        panel.add(subTitle);
+        panel.add(Box.createVerticalStrut(60));
+        panel.add(selectorPanel);
+        panel.add(lblInfo);
+        panel.add(Box.createVerticalStrut(40));
+        panel.add(btnStart);
+        panel.add(Box.createVerticalStrut(20));
+        panel.add(btnSettings);
+        panel.add(Box.createVerticalGlue());
+
+        return panel;
+    }
+
+    // ==========================================
+    // PAGE 2: CHARACTER SELECTION
+    // ==========================================
+    private void showCharacterSelection(int n) {
+        // Kita buat panel baru setiap kali dipanggil agar fresh
+        JPanel selectionPanel = new JPanel();
+        selectionPanel.setLayout(new BorderLayout());
+        selectionPanel.setBackground(OceanTheme.SIDEBAR_BG);
+
+        // Header
+        JLabel header = new JLabel("ASSEMBLE YOUR SQUAD", SwingConstants.CENTER);
+        header.setFont(OceanTheme.FONT_TITLE.deriveFont(32f));
+        header.setForeground(OceanTheme.PEARL_GOLD);
+        header.setBorder(new EmptyBorder(30, 0, 30, 0));
+        selectionPanel.add(header, BorderLayout.NORTH);
+
+        // Input List (Center)
+        JPanel inputsContainer = new JPanel();
+        inputsContainer.setLayout(new BoxLayout(inputsContainer, BoxLayout.Y_AXIS));
+        inputsContainer.setOpaque(false);
+        inputsContainer.setBorder(new EmptyBorder(0, 100, 0, 100));
+
+        List<PlayerInputPanel> inputFields = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            PlayerInputPanel p = new PlayerInputPanel(i + 1);
+            inputFields.add(p);
+            inputsContainer.add(p);
+            inputsContainer.add(Box.createVerticalStrut(15));
+        }
+
+        // Scroll pane in case screen is small
+        JScrollPane scroll = new JScrollPane(inputsContainer);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        scroll.setBorder(null);
+        selectionPanel.add(scroll, BorderLayout.CENTER);
+
+        // Footer Buttons
+        JPanel footer = new JPanel(new FlowLayout(FlowLayout.CENTER, 30, 30));
+        footer.setOpaque(false);
+
+        OceanTheme.Button btnBack = new OceanTheme.Button("BACK");
+        btnBack.addActionListener(e -> cardLayout.show(mainContainer, "MENU"));
+
+        OceanTheme.Button btnGo = new OceanTheme.Button("LET'S DIVE!");
+        btnGo.addActionListener(e -> {
+            // Collect Data
+            List<Player> players = new ArrayList<>();
+            Color[] pal = OceanTheme.PLAYER_COLORS;
+
+            for (int i = 0; i < inputFields.size(); i++) {
+                PlayerInputPanel input = inputFields.get(i);
+                players.add(new Player(
+                        input.getNameField().getText(),
+                        pal[i % pal.length],
+                        input.getSelectedCharType()
+                ));
+            }
+            initGame(players); // Masuk ke Game
+        });
+
+        footer.add(btnBack);
+        footer.add(btnGo);
+        selectionPanel.add(footer, BorderLayout.SOUTH);
+
+        // Tambahkan ke card layout dan tampilkan
+        mainContainer.add(selectionPanel, "SELECTION");
+        cardLayout.show(mainContainer, "SELECTION");
+    }
+
+    // ==========================================
+    // PAGE 3: SETTINGS PAGE
+    // ==========================================
+    private JPanel createSettingsMenu() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(OceanTheme.WATER_DEEP);
+        panel.setBorder(new EmptyBorder(50, 50, 50, 50));
+
+        JLabel title = new JLabel("SETTINGS");
+        title.setFont(OceanTheme.FONT_TITLE.deriveFont(40f));
+        title.setForeground(Color.WHITE);
+        title.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        // Toggle Music (Dummy Implementation visual)
+        JCheckBox musicToggle = new JCheckBox("Background Music");
+        musicToggle.setFont(OceanTheme.FONT_TITLE.deriveFont(20f));
+        musicToggle.setForeground(Color.WHITE);
+        musicToggle.setOpaque(false);
+        musicToggle.setSelected(true);
+        musicToggle.setAlignmentX(Component.CENTER_ALIGNMENT);
+        musicToggle.addActionListener(e -> {
+            if (musicToggle.isSelected()) sound.playBgm("bgm.wav");
+            else sound.stopBgm();
+        });
+
+        OceanTheme.Button btnBack = new OceanTheme.Button("BACK TO MENU");
+        btnBack.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btnBack.addActionListener(e -> cardLayout.show(mainContainer, "MENU"));
+
+        panel.add(title);
+        panel.add(Box.createVerticalStrut(50));
+        panel.add(musicToggle);
+        panel.add(Box.createVerticalStrut(50));
+        panel.add(btnBack);
+
+        return panel;
+    }
+
+    // ==========================================
+    // PAGE 4: GAMEPLAY (The Actual Game)
+    // ==========================================
+    private void initGame(List<Player> playersInput) {
+        // 1. Setup Logic
         this.board = new GameBoard(6, 10);
         this.dice = new Dice();
-        this.sound = new SoundManager();
         this.playerStack = new Stack<>();
 
-        // [PENTING] Loop terbalik agar urutan giliran benar
-        for (int i = playersInput.size()-1; i >= 0; i--) {
+        // Reset & Push Players
+        for (int i = playersInput.size() - 1; i >= 0; i--) {
             Player p = playersInput.get(i);
-
-            // Reset posisi & ambil skor lama, TAPI jangan buat object baru (new Player)
             p.setPosition(1);
             p.setScore(LeaderboardManager.getScore(p.getName()));
-
             playerStack.push(p);
             LeaderboardManager.addScore(p.getName(), 0);
         }
 
-        initUI();
-        sound.playBgm("bgm.wav");
-    }
+        // 2. Setup UI Components for Game
+        JPanel gamePanelContainer = new JPanel(new BorderLayout());
+        gamePanelContainer.setBackground(OceanTheme.WATER_CYAN);
 
-    private void initUI() {
-        setTitle("Ocean Adventure: Treasure Hunt");
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setLayout(new BorderLayout());
-        getContentPane().setBackground(OceanTheme.WATER_CYAN);
-
-        // --- [MULAI KODE BARU: TOMBOL RESTART] ---
+        // Top Bar (Restart / Home)
         JPanel topBar = new JPanel(new BorderLayout());
         topBar.setOpaque(false);
         topBar.setBorder(new EmptyBorder(5, 10, 0, 10));
 
-        JButton btnRestart = new JButton("↻");
-        btnRestart.setFont(new Font("Segoe UI Symbol", Font.BOLD, 24));
-        btnRestart.setForeground(Color.WHITE);
-        btnRestart.setBackground(OceanTheme.BUTTON_ORANGE);
-        btnRestart.setFocusPainted(false);
-        btnRestart.setBorder(BorderFactory.createEmptyBorder(2, 15, 2, 15));
+        JButton btnHome = new JButton("⌂"); // Home Icon
+        styleMiniButton(btnHome);
+        btnHome.addActionListener(e -> {
+            int c = JOptionPane.showConfirmDialog(this, "Quit to Main Menu?", "Quit", JOptionPane.YES_NO_OPTION);
+            if(c == JOptionPane.YES_OPTION) cardLayout.show(mainContainer, "MENU");
+        });
 
-        // Aksi Restart: Tutup game -> Buka baru dengan list pemain yang sama
+        JButton btnRestart = new JButton("↻"); // Restart Icon
+        styleMiniButton(btnRestart);
         btnRestart.addActionListener(e -> {
-            int choice = JOptionPane.showConfirmDialog(this,
-                    "Are you sure you want to restart?", "Restart", JOptionPane.YES_NO_OPTION);
-            if (choice == JOptionPane.YES_OPTION) {
-                sound.stopBgm();
-                dispose();
+            int c = JOptionPane.showConfirmDialog(this, "Restart Game?", "Restart", JOptionPane.YES_NO_OPTION);
+            if(c == JOptionPane.YES_OPTION) {
+                // Restart dengan pemain yang sama
                 List<Player> currentList = new ArrayList<>(playerStack);
                 Collections.reverse(currentList);
-                new SnakeLadderGame(currentList).setVisible(true);
+                initGame(currentList);
             }
         });
 
         JPanel rightCorner = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         rightCorner.setOpaque(false);
+        rightCorner.add(btnHome);
         rightCorner.add(btnRestart);
         topBar.add(rightCorner, BorderLayout.EAST);
-        add(topBar, BorderLayout.NORTH);
 
-        // --- BOARD PANEL ---
+        // Board & Sidebar
         boardPanel = new BoardPanel(board, playerStack);
         JPanel boardWrapper = new JPanel(new BorderLayout());
         boardWrapper.setBackground(OceanTheme.WATER_DEEP);
@@ -85,35 +302,51 @@ public class SnakeLadderGame extends JFrame {
                 BorderFactory.createEmptyBorder(4, 4, 4, 4)
         ));
         boardWrapper.add(boardPanel, BorderLayout.CENTER);
-        add(boardWrapper, BorderLayout.CENTER);
 
-        // --- RIGHT PANEL ---
-        JPanel rightPanel = new JPanel();
-        rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
-        rightPanel.setBackground(OceanTheme.SIDEBAR_BG);
-        rightPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
+        JPanel sidebar = new JPanel();
+        sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
+        sidebar.setBackground(OceanTheme.SIDEBAR_BG);
+        sidebar.setBorder(new EmptyBorder(15, 15, 15, 15));
 
         playerPanel = new PlayerPanel(playerStack);
-        rightPanel.add(playerPanel);
-        rightPanel.add(Box.createVerticalStrut(15));
-
+        sidebar.add(playerPanel);
+        sidebar.add(Box.createVerticalStrut(15));
         controlPanel = new ControlPanel(e -> playTurn());
-        rightPanel.add(controlPanel);
+        sidebar.add(controlPanel);
 
-        add(rightPanel, BorderLayout.EAST);
+        // Assembly
+        gamePanelContainer.add(topBar, BorderLayout.NORTH);
+        gamePanelContainer.add(boardWrapper, BorderLayout.CENTER);
+        gamePanelContainer.add(sidebar, BorderLayout.EAST);
 
-        pack();
-        setLocationRelativeTo(null);
+        // Show Game
+        mainContainer.add(gamePanelContainer, "GAME");
+        cardLayout.show(mainContainer, "GAME");
+
         refreshUI();
     }
 
+    private void styleMiniButton(JButton btn) {
+        btn.setFont(new Font("Segoe UI Symbol", Font.BOLD, 20));
+        btn.setForeground(Color.WHITE);
+        btn.setBackground(OceanTheme.BUTTON_ORANGE);
+        btn.setFocusPainted(false);
+        btn.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+    }
+
+    // ==========================================
+    // GAME LOGIC METHODS (Sama seperti sebelumnya)
+    // ==========================================
     private void refreshUI() {
+        if(playerStack.isEmpty()) return;
         currentPlayer = playerStack.peek();
         playerPanel.setCurrent(currentPlayer);
         controlPanel.setStatus("DIVER: " + currentPlayer.getName().toUpperCase(), OceanTheme.WATER_DEEP);
         controlPanel.toggleBtn(true);
         controlPanel.setPath("");
         boardPanel.clearPath();
+        boardPanel.repaint();
+        playerPanel.repaint();
     }
 
     private void playTurn() {
@@ -202,8 +435,8 @@ public class SnakeLadderGame extends JFrame {
         if(board.hasStar(pos)) {
             controlPanel.setStatus("MAGIC BUBBLE: BONUS TURN!", OceanTheme.PEARL_GOLD);
             javax.swing.Timer t = new javax.swing.Timer(1200, e -> {
-                playerStack.pop(); // Keluarkan pemain sekarang dari atas tumpukan
-                playerStack.add(0, currentPlayer); // Masukkan ke paling bawah antrian
+                playerStack.pop();
+                playerStack.add(0, currentPlayer);
                 refreshUI();
                 ((javax.swing.Timer)e.getSource()).stop();
             });
@@ -269,8 +502,7 @@ public class SnakeLadderGame extends JFrame {
         btnMenu.setAlignmentX(CENTER_ALIGNMENT);
         btnMenu.addActionListener(e -> {
             d.dispose();
-            dispose();
-            showMainMenu();
+            cardLayout.show(mainContainer, "MENU"); // Kembali ke Menu Utama
         });
 
         p.add(btnMenu);
@@ -278,109 +510,14 @@ public class SnakeLadderGame extends JFrame {
         d.setVisible(true);
     }
 
-    // --- MAIN MENU & ENTRY POINT ---
+    // MAIN ENTRY POINT
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(SnakeLadderGame::showMainMenu);
+        SwingUtilities.invokeLater(() -> {
+            new SnakeLadderGame().setVisible(true);
+        });
     }
 
-    private static void showMainMenu() {
-        JFrame frame = new JFrame("Ocean Adventure");
-        frame.setSize(500, 500);
-        frame.setLocationRelativeTo(null);
-        frame.setDefaultCloseOperation(EXIT_ON_CLOSE);
-
-        JPanel mainPanel = new JPanel();
-        mainPanel.setBackground(OceanTheme.WATER_CYAN);
-        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
-        mainPanel.setBorder(new EmptyBorder(40, 40, 40, 40));
-
-        JLabel title = new JLabel("OCEAN ADVENTURE");
-        title.setFont(OceanTheme.FONT_TITLE);
-        title.setForeground(OceanTheme.WATER_DEEP);
-        title.setAlignmentX(CENTER_ALIGNMENT);
-
-        JPanel selector = new JPanel(new FlowLayout());
-        selector.setOpaque(false);
-        JLabel numLabel = new JLabel("2");
-        numLabel.setFont(new Font("Arial", Font.BOLD, 50));
-        numLabel.setForeground(Color.WHITE);
-
-        OceanTheme.Button btnMin = new OceanTheme.Button("-");
-        btnMin.addActionListener(e -> {
-            int n = Integer.parseInt(numLabel.getText());
-            if(n>2) numLabel.setText(""+(n-1));
-        });
-        OceanTheme.Button btnPlus = new OceanTheme.Button("+");
-        btnPlus.addActionListener(e -> {
-            int n = Integer.parseInt(numLabel.getText());
-            if(n < 5) numLabel.setText(""+(n+1)); // [UBAH] Dari 4 menjadi 5
-        });
-
-        selector.add(btnMin); selector.add(numLabel); selector.add(btnPlus);
-
-        OceanTheme.Button btnStart = new OceanTheme.Button("START DIVE");
-        btnStart.setAlignmentX(CENTER_ALIGNMENT);
-        btnStart.setPreferredSize(new Dimension(200, 60));
-
-        // [BARU] Menuju ke Menu Pemilihan Karakter
-        btnStart.addActionListener(e -> {
-            frame.dispose();
-            showCharacterSelection(2); // Ganti logika ini sesuai UI Anda
-        });
-
-        mainPanel.add(title);
-        mainPanel.add(Box.createVerticalStrut(50));
-        mainPanel.add(selector);
-        mainPanel.add(Box.createVerticalStrut(50));
-        mainPanel.add(btnStart);
-        frame.add(mainPanel);
-        frame.setVisible(true);
-    }
-
-    // [BARU] MENU POP-UP UNTUK MEMILIH KARAKTER + NAMA
-    private static void showCharacterSelection(int n) {
-        JDialog d = new JDialog((Frame)null, "Assemble Your Squad", true);
-        d.setSize(550, 500);
-        d.setLocationRelativeTo(null);
-
-        JPanel p = new JPanel();
-        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-        p.setBackground(OceanTheme.SIDEBAR_BG); // Pastikan warna ini ada di OceanTheme
-
-        java.util.List<PlayerInputPanel> inputs = new ArrayList<>();
-        for(int i=0; i<n; i++) {
-            PlayerInputPanel panel = new PlayerInputPanel(i+1);
-            inputs.add(panel);
-            p.add(panel);
-            p.add(Box.createVerticalStrut(10));
-        }
-
-        OceanTheme.Button btn = new OceanTheme.Button("LET'S DIVE!");
-        btn.setAlignmentX(Component.CENTER_ALIGNMENT);
-        btn.addActionListener(e -> {
-            java.util.List<Player> players = new ArrayList<>();
-            Color[] pal = OceanTheme.PLAYER_COLORS;
-
-            for(int i=0; i<inputs.size(); i++) {
-                PlayerInputPanel input = inputs.get(i);
-                // MEMBUAT PLAYER DENGAN TIPE KARAKTER YANG DIPILIH
-                players.add(new Player(
-                        input.getNameField().getText(),
-                        pal[i % pal.length],
-                        input.getSelectedCharType() // Mengambil int 0/1/2
-                ));
-            }
-            d.dispose();
-            new SnakeLadderGame(players).setVisible(true);
-        });
-
-        p.add(Box.createVerticalStrut(20));
-        p.add(btn);
-        d.add(p);
-        d.setVisible(true);
-    }
-
-    // Helper Panel untuk Input per Player
+    // --- HELPER CLASS FOR INPUT ---
     static class PlayerInputPanel extends JPanel {
         private JTextField nameField;
         private JComboBox<String> charSelector;
@@ -388,18 +525,20 @@ public class SnakeLadderGame extends JFrame {
         public PlayerInputPanel(int num) {
             setLayout(new GridLayout(1, 2, 10, 0));
             setOpaque(false);
+            setMaximumSize(new Dimension(500, 40));
 
             nameField = new JTextField("Diver " + num);
+            nameField.setFont(new Font("Arial", Font.PLAIN, 14));
 
-            // [UBAH] Tambahkan karakter baru di sini
             String[] chars = {
                     "🐬 Dolphin",
                     "🐢 Turtle",
                     "🚁 Submarine",
-                    "🦈 Shark",    // [BARU]
-                    "🐙 Octopus"   // [BARU]
+                    "🦈 Shark",
+                    "🐙 Octopus"
             };
             charSelector = new JComboBox<>(chars);
+            charSelector.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
 
             add(nameField);
             add(charSelector);

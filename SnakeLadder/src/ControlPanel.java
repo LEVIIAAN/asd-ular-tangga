@@ -12,32 +12,30 @@ public class ControlPanel extends JPanel {
     public ControlPanel(ActionListener onRoll) {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setOpaque(false);
-        // Padding diperkecil
-        setBorder(new EmptyBorder(20, 20, 20, 20));
+        setBorder(new EmptyBorder(15, 20, 15, 20)); // Padding vertikal dikurangi (20->15)
 
-        // JUDUL
+        // TITLE
         JLabel title = new JLabel("ACTION LOG");
-        title.setFont(OceanTheme.FONT_TITLE.deriveFont(20f)); // Font kecil
+        title.setFont(OceanTheme.FONT_TITLE.deriveFont(18f));
         title.setForeground(OceanTheme.BORDER_GOLD);
         title.setAlignmentX(CENTER_ALIGNMENT);
         add(title);
 
-        add(Box.createVerticalStrut(15));
+        add(Box.createVerticalStrut(10)); // Jarak dikurangi
 
-        // DADU (Diperkecil)
-        JPanel diceContainer = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        diceContainer.setOpaque(false);
+        // DADU FULL
         dicePanel = new DiceFacePanel();
-        dicePanel.setPreferredSize(new Dimension(70, 70)); // Ukuran dadu 70x70
-        diceContainer.add(dicePanel);
-        add(diceContainer);
+        dicePanel.setPreferredSize(new Dimension(80, 80));
+        dicePanel.setMaximumSize(new Dimension(80, 80));
+        dicePanel.setAlignmentX(CENTER_ALIGNMENT);
+        add(dicePanel);
 
-        add(Box.createVerticalStrut(10));
+        add(Box.createVerticalStrut(10)); // Jarak dikurangi
 
-        // TOMBOL
+        // BUTTON
         rollBtn = new OceanTheme.Button("ROLL DICE");
         rollBtn.setAlignmentX(CENTER_ALIGNMENT);
-        rollBtn.setMaximumSize(new Dimension(160, 45)); // Tombol lebih ramping
+        rollBtn.setMaximumSize(new Dimension(180, 45)); // Tinggi tombol dikurangi dikit
         rollBtn.addActionListener(onRoll);
         add(rollBtn);
 
@@ -52,31 +50,20 @@ public class ControlPanel extends JPanel {
 
         add(Box.createVerticalStrut(10));
 
-        /// --- LOG AREA (Perbaikan Tampilan) ---
-        // Label Judul Kecil untuk kotak hitam
-        JLabel logLabel = new JLabel("ADVENTURE LOG");
-        logLabel.setFont(new Font("Verdana", Font.BOLD, 10));
-        logLabel.setForeground(new Color(180, 180, 180)); // Abu terang
-        logLabel.setAlignmentX(CENTER_ALIGNMENT);
-        add(logLabel);
-
-        add(Box.createVerticalStrut(5));
-
+        // LOG AREA
         pathArea = new JTextArea(3, 20);
         pathArea.setEditable(false);
         pathArea.setLineWrap(true);
         pathArea.setWrapStyleWord(true);
         pathArea.setFont(new Font("Monospaced", Font.PLAIN, 11));
-
-        // Ubah warna background agar tidak hitam pekat, tapi biru gelap transparan
-        pathArea.setBackground(new Color(0, 0, 0, 80));
-        pathArea.setForeground(Color.WHITE); // Teks Putih
-
-        JScrollPane scroll = new JScrollPane(pathArea);
-        scroll.setBorder(BorderFactory.createLineBorder(OceanTheme.BORDER_GOLD, 1)); // Border Emas
-        scroll.setOpaque(false);
-        scroll.getViewport().setOpaque(false);
-        add(scroll);
+        pathArea.setBackground(new Color(0, 0, 0, 60));
+        pathArea.setForeground(Color.WHITE);
+        pathArea.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(OceanTheme.BORDER_GOLD, 1),
+                BorderFactory.createEmptyBorder(5, 5, 5, 5)
+        ));
+        pathArea.setMaximumSize(new Dimension(300, 60)); // Batasi tinggi log
+        add(pathArea);
     }
 
     public void updateDice(int val) { dicePanel.setValue(val); }

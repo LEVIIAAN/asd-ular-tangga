@@ -25,13 +25,11 @@ public class BoardPanel extends JPanel {
 
         // Load Gambar (Sama seperti sebelumnya)
         try {
-            File absFile = new File("assets/ocean_bg.png");
-            File relFile = new File("assets/ocean_bg.png");
-            File oldFile = new File("assets/bgfixhd.jpg");
-
-            if (absFile.exists()) mapImage = ImageIO.read(absFile);
-            else if (relFile.exists()) mapImage = ImageIO.read(relFile);
-            else if (oldFile.exists()) mapImage = ImageIO.read(oldFile);
+            // Ubah jadi getResource juga
+            java.net.URL mapUrl = getClass().getResource("/assets/ocean_bg.png");
+            if (mapUrl != null) {
+                mapImage = ImageIO.read(mapUrl);
+            }
         } catch (Exception e) { e.printStackTrace(); }
         loadCharIcons();
         initPreciseOceanNodes();
@@ -197,30 +195,18 @@ public class BoardPanel extends JPanel {
 
     // [REVISI 2] GAMBAR KARAKTER SESUAI PILIHAN
     private void drawDiver(Graphics2D g2, int x, int y, Color c, int type) {
-        int size = 40; // Ukuran Avatar
+        int size = 50;
         int offset = size / 2;
 
-        // Cek apakah gambar tersedia
         if (type >= 0 && type < charIcons.length && charIcons[type] != null) {
-            // GAMBAR BAYANGAN
-            g2.setColor(new Color(0,0,0,60));
-            g2.fillOval(x - offset + 3, y - offset + 5, size, size-5);
-
-            // GAMBAR KARAKTER (PNG)
             g2.drawImage(charIcons[type], x - offset, y - offset, size, size, null);
-
-            // INDIKATOR WARNA PEMAIN (Lingkaran kecil di pojok kanan atas)
-            g2.setColor(c);
-            g2.fillOval(x + offset - 12, y - offset, 12, 12);
-            g2.setColor(Color.WHITE);
-            g2.setStroke(new BasicStroke(1));
-            g2.drawOval(x + offset - 12, y - offset, 12, 12);
         } else {
-            // FALLBACK (Jika gambar tidak ada, pakai lingkaran warna biasa)
+
             g2.setColor(c);
-            g2.fillOval(x - 12, y - 12, 24, 24);
+            g2.fillOval(x - 15, y - 15, 30, 30);
             g2.setColor(Color.WHITE);
-            g2.drawOval(x - 12, y - 12, 24, 24);
+            g2.setStroke(new BasicStroke(3));
+            g2.drawOval(x - 15, y - 15, 30, 30);
         }
     }
 
@@ -250,24 +236,24 @@ public class BoardPanel extends JPanel {
 
     private void loadCharIcons() {
         try {
-            // Karena folder assets ada di dalam src, kita pakai tanda '/' di depan
+            // [PENTING] HAPUS 'SnakeLadder/src'.
+            // Cukup mulai dari '/assets/...'
             String[] files = {
-                    "SnakeLadder/src/assets/dolphin.png",
-                    "SnakeLadder/src/assets/turtle.png",
-                    "SnakeLadder/src/assets/submarine.png",
-                    "SnakeLadder/src/assets/shark.png",
-                    "SnakeLadder/src/assets/octopus.png"
+                    "/assets/dolphin.png",
+                    "/assets/turtle.png",
+                    "/assets/submarine.png",
+                    "/assets/shark.png",
+                    "/assets/octopus.png"
             };
 
-            // Loop untuk 5 karakter
-            for(int i=0; i<5; i++) {
-                // PENTING: Gunakan getResource karena folder ada di dalam src
+            for(int i=0; i<files.length; i++) {
+                // Gunakan getResource (WAJIB)
                 java.net.URL imgUrl = getClass().getResource(files[i]);
 
                 if (imgUrl != null) {
                     charIcons[i] = ImageIO.read(imgUrl);
                 } else {
-                    System.out.println("❌ Gagal menemukan gambar: " + files[i]);
+                    System.out.println("❌ Path salah: " + files[i]);
                 }
             }
         } catch (Exception e) {
