@@ -1,6 +1,8 @@
 import javax.swing.*;
 import java.awt.*;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
+import java.awt.geom.QuadCurve2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import javax.imageio.ImageIO;
@@ -23,9 +25,8 @@ public class BoardPanel extends JPanel {
         this.players = players;
         setPreferredSize(new Dimension(600, 680));
 
-        // Load Gambar (Sama seperti sebelumnya)
+        // Load Gambar
         try {
-            // Ubah jadi getResource juga
             java.net.URL mapUrl = getClass().getResource("/assets/ocean_bg.png");
             if (mapUrl != null) {
                 mapImage = ImageIO.read(mapUrl);
@@ -35,7 +36,7 @@ public class BoardPanel extends JPanel {
         initPreciseOceanNodes();
     }
 
-    // ... (METHOD initPreciseOceanNodes SAMA PERSIS SEPERTI SEBELUMNYA, TIDAK DIUBAH) ...
+    // --- KOORDINAT TETAP (TIDAK DIUBAH) ---
     private void initPreciseOceanNodes() {
         manualNodes[0] = new Point2D.Double(0.143, 0.820); // 1
         manualNodes[1] = new Point2D.Double(0.210, 0.821); // 2
@@ -113,7 +114,9 @@ public class BoardPanel extends JPanel {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g;
+        // Aktifkan antialiasing agar gambar & garis halus
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
         // 1. Draw Map
         if (mapImage != null) g2.drawImage(mapImage, 0, 0, getWidth(), getHeight(), null);
@@ -122,11 +125,13 @@ public class BoardPanel extends JPanel {
             g2.fillRect(0, 0, getWidth(), getHeight());
         }
 
-        // 2. Draw Links & Scores
-        drawLinks(g2);
+        // 2. Draw Links (UPDATED: Menggunakan Panah Putih Tipis Transparan)
+        drawLinksSmoothArrows(g2);
+
+        // 3. Draw Scores
         drawScores(g2);
 
-        // 3. Highlight Path
+        // 4. Highlight Path
         if (!highlightPath.isEmpty()) {
             g2.setColor(new Color(255, 215, 0, 150));
             g2.setStroke(new BasicStroke(6));
@@ -137,7 +142,7 @@ public class BoardPanel extends JPanel {
             }
         }
 
-        // 4. Draw Players (UPDATED)
+        // 5. Draw Players
         int[] offsetCount = new int[TOTAL_NODES + 1];
         for (Player p : players) {
             int posIndex = p.getPosition();
@@ -146,18 +151,87 @@ public class BoardPanel extends JPanel {
             if (pos != null) {
                 int shiftX = (offsetCount[posIndex] * 10) - 5;
                 int shiftY = (offsetCount[posIndex] * 10) - 5;
-
-                // [UBAH] Mengirim tipe karakter ke method draw
                 drawDiver(g2, pos.x + shiftX, pos.y + shiftY, p.getColor(), p.getCharacterType());
                 offsetCount[posIndex]++;
             }
         }
     }
 
-    // [REVISI 1] BUBBLES LEBIH KECIL (75%)
+    // --- REVISI: PANAH PUTIH TRANSPARAN & TIPIS ---
+    private void drawLinksSmoothArrows(Graphics2D g2) {
+        // [FIX] Warna Putih Transparan (Alpha 150 dari 255)
+        Color ARROW_COLOR = new Color(255, 255, 255, 150);
+
+        // [FIX] Ketebalan Tipis (3f)
+        g2.setStroke(new BasicStroke(3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
+        for (Link link : board.getLinks().values()) {
+            Point p1 = getNodePos(link.getFrom());
+            Point p2 = getNodePos(link.getTo());
+
+            if (p1 != null && p2 != null) {
+                boolean isLadder = link.getTo() > link.getFrom();
+
+                // --- HITUNG KURVA BÉZIER ---
+                double midX = (p1.x + p2.x) / 2.0;
+                double midY = (p1.y + p2.y) / 2.0;
+                double dx = p2.x - p1.x;
+                double dy = p2.y - p1.y;
+                double distance = Math.sqrt(dx * dx + dy * dy);
+
+                // Besaran lengkungan
+                double offsetAmount = Math.max(distance * 0.25, 60);
+
+                double ctrlX, ctrlY;
+                // Tangga lengkung kiri, Ular lengkung kanan
+                if (isLadder) {
+                    ctrlX = midX - (dy / distance) * offsetAmount;
+                    ctrlY = midY + (dx / distance) * offsetAmount;
+                } else {
+                    ctrlX = midX + (dy / distance) * offsetAmount;
+                    ctrlY = midY - (dx / distance) * offsetAmount;
+                }
+
+                // Buat objek kurva
+                QuadCurve2D curve = new QuadCurve2D.Double(p1.x, p1.y, ctrlX, ctrlY, p2.x, p2.y);
+
+                // 1. Gambar Badan Panah
+                g2.setColor(ARROW_COLOR);
+                g2.draw(curve);
+
+                // 2. Gambar Kepala Panah
+                // Hitung sudut di ujung kurva
+                double angle = Math.atan2(p2.y - ctrlY, p2.x - ctrlX);
+
+                // Ukuran kepala panah sedikit lebih kecil agar rapi (12px)
+                drawArrowhead(g2, p2.x, p2.y, angle, ARROW_COLOR, 12);
+
+                // 3. Titik di Ekor (Start)
+                g2.fillOval(p1.x - 4, p1.y - 4, 8, 8);
+            }
+        }
+        g2.setStroke(new BasicStroke(1)); // Reset stroke
+    }
+
+    // Helper untuk menggambar kepala panah yang bisa diputar
+    private void drawArrowhead(Graphics2D g2, double tipX, double tipY, double angle, Color color, int size) {
+        AffineTransform old = g2.getTransform();
+        g2.translate(tipX, tipY);
+        g2.rotate(angle - Math.PI / 2.0); // Koreksi rotasi
+
+        Polygon arrowHead = new Polygon();
+        arrowHead.addPoint(0, 0);
+        arrowHead.addPoint(-size, -size * 2);
+        arrowHead.addPoint(size, -size * 2);
+
+        g2.setColor(color);
+        g2.fill(arrowHead);
+        g2.setTransform(old);
+    }
+
     private void drawScores(Graphics2D g2) {
         Map<Integer, Integer> points = board.getPointsMap();
-        g2.setFont(new Font("Segoe UI", Font.BOLD, 9)); // Font diperkecil
+        g2.setFont(new Font("Segoe UI", Font.BOLD, 9));
 
         for (Map.Entry<Integer, Integer> entry : points.entrySet()) {
             int pos = entry.getKey();
@@ -165,7 +239,7 @@ public class BoardPanel extends JPanel {
             Point p = getNodePos(pos);
 
             if (p != null) {
-                int size = 21; // [UBAH] Ukuran dikecilkan (28 -> 21)
+                int size = 21;
                 int x = p.x + 8;
                 int y = p.y - 12;
 
@@ -176,14 +250,12 @@ public class BoardPanel extends JPanel {
                 g2.setPaint(bubbleEffect);
                 g2.fillOval(x, y, size, size);
 
-                // Shine
                 g2.setColor(new Color(255, 255, 255, 180));
                 g2.fillOval(x + 4, y + 4, 4, 4);
                 g2.setColor(new Color(255, 255, 255, 100));
                 g2.setStroke(new BasicStroke(1));
                 g2.drawOval(x, y, size, size);
 
-                // Text
                 g2.setColor(Color.WHITE);
                 FontMetrics fm = g2.getFontMetrics();
                 String txt = "+" + value;
@@ -193,7 +265,6 @@ public class BoardPanel extends JPanel {
         }
     }
 
-    // [REVISI 2] GAMBAR KARAKTER SESUAI PILIHAN
     private void drawDiver(Graphics2D g2, int x, int y, Color c, int type) {
         int size = 50;
         int offset = size / 2;
@@ -201,29 +272,11 @@ public class BoardPanel extends JPanel {
         if (type >= 0 && type < charIcons.length && charIcons[type] != null) {
             g2.drawImage(charIcons[type], x - offset, y - offset, size, size, null);
         } else {
-
             g2.setColor(c);
             g2.fillOval(x - 15, y - 15, 30, 30);
             g2.setColor(Color.WHITE);
             g2.setStroke(new BasicStroke(3));
             g2.drawOval(x - 15, y - 15, 30, 30);
-        }
-    }
-
-    private void drawLinks(Graphics2D g2) {
-        for (Link link : board.getLinks().values()) {
-            Point p1 = getNodePos(link.getFrom());
-            Point p2 = getNodePos(link.getTo());
-            if (p1 != null && p2 != null) {
-                // Glow
-                g2.setColor(new Color(0, 255, 255, 50));
-                g2.setStroke(new BasicStroke(8, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-                g2.drawLine(p1.x, p1.y, p2.x, p2.y);
-                // Dashed Line
-                g2.setColor(new Color(255, 255, 255, 180));
-                g2.setStroke(new BasicStroke(3, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 0, new float[]{8, 8}, 0));
-                g2.drawLine(p1.x, p1.y, p2.x, p2.y);
-            }
         }
     }
 
@@ -236,8 +289,6 @@ public class BoardPanel extends JPanel {
 
     private void loadCharIcons() {
         try {
-            // [PENTING] HAPUS 'SnakeLadder/src'.
-            // Cukup mulai dari '/assets/...'
             String[] files = {
                     "/assets/dolphin.png",
                     "/assets/turtle.png",
@@ -247,9 +298,7 @@ public class BoardPanel extends JPanel {
             };
 
             for(int i=0; i<files.length; i++) {
-                // Gunakan getResource (WAJIB)
                 java.net.URL imgUrl = getClass().getResource(files[i]);
-
                 if (imgUrl != null) {
                     charIcons[i] = ImageIO.read(imgUrl);
                 } else {
