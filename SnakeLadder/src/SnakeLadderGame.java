@@ -26,8 +26,8 @@ public class SnakeLadderGame extends JFrame {
     private Player currentPlayer;
 
     // --- DATA & ASSETS ---
-    private int selectedPlayerCount = 2; // Field Class (Penting agar tidak error lambda)
-    private Image menuBackground;        // Variable untuk menyimpan gambar agar NO LAG
+    private int selectedPlayerCount = 2;
+    private Image menuBackground;
 
     // FONT KHUSUS
     private final Font MINECRAFT_TITLE_FONT = new Font("Impact", Font.BOLD, 52);
@@ -37,7 +37,7 @@ public class SnakeLadderGame extends JFrame {
         // 1. Init Sound
         sound = new SoundManager();
 
-        // 2. PRE-LOAD IMAGE (RAHASIA AGAR TIDAK LAG)
+        // 2. Pre-load Background Image
         try {
             URL imgUrl = getClass().getResource("/assets/ocean_bg.png");
             if (imgUrl != null) {
@@ -69,44 +69,15 @@ public class SnakeLadderGame extends JFrame {
     }
 
     // ==========================================
-    // PAGE 1: MAIN MENU
+    // PAGE 1: MAIN MENU (CROP BACKGROUND)
     // ==========================================
     private JPanel createMainMenu() {
         JPanel panel = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
-
-                if (menuBackground != null) {
-                    int imgW = menuBackground.getWidth(this);
-                    int imgH = menuBackground.getHeight(this);
-
-                    // --- TEKNIK CROP / ZOOM ---
-                    // Kita potong pinggiran gambar asli agar hanya MAP yang tampil.
-                    // Angka ini adalah persentase (0.16 = 16%).
-                    // Sesuaikan angka ini jika potongan dirasa kurang pas.
-
-                    double cutTop    = 0.18; // Potong 18% Atas (Hilangkan Judul & Langit Biru)
-                    double cutBottom = 0.05; // Potong 5% Bawah (Hilangkan Ombak bingkai)
-                    double cutSide   = 0.04; // Potong 4% Kiri & Kanan (Hilangkan Tiang bingkai)
-
-                    // Hitung koordinat sumber (Source Coordinates)
-                    int sx1 = (int) (imgW * cutSide);
-                    int sy1 = (int) (imgH * cutTop);
-                    int sx2 = (int) (imgW * (1.0 - cutSide));
-                    int sy2 = (int) (imgH * (1.0 - cutBottom));
-
-                    // Gambar ulang: Ambil bagian tengah (Map), tarik hingga memenuhi layar
-                    g.drawImage(menuBackground, 0, 0, getWidth(), getHeight(),
-                            sx1, sy1, sx2, sy2, this);
-
-                } else {
-                    // Fallback jika gambar gagal load
-                    g.setColor(new Color(0, 105, 148));
-                    g.fillRect(0, 0, getWidth(), getHeight());
-                }
-
-                // Overlay Hitam Transparan (Agar tulisan "OCEAN ADVENTURES" Emas lebih kontras)
+                drawCroppedBackground(g, getWidth(), getHeight());
+                // Overlay Hitam Transparan
                 g.setColor(new Color(0, 0, 0, 60));
                 g.fillRect(0, 0, getWidth(), getHeight());
             }
@@ -116,8 +87,7 @@ public class SnakeLadderGame extends JFrame {
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(10, 10, 10, 10);
 
-        // --- JUDUL GAME (PROGRAMMATIC) ---
-        // Karena background sudah bersih, judul ini akan terlihat lebih bagus
+        // JUDUL
         JLabel titleLabel = new JLabel("OCEAN ADVENTURES", SwingConstants.CENTER);
         titleLabel.setFont(MINECRAFT_TITLE_FONT);
         titleLabel.setForeground(OceanTheme.PEARL_GOLD);
@@ -128,8 +98,7 @@ public class SnakeLadderGame extends JFrame {
         subTitleLabel.setForeground(Color.WHITE);
         applyShadow(subTitleLabel);
 
-        gbc.gridx = 0; gbc.gridy = 0;
-        gbc.gridwidth = 2;
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
         panel.add(titleLabel, gbc);
 
         gbc.gridy = 1;
@@ -138,7 +107,7 @@ public class SnakeLadderGame extends JFrame {
         gbc.gridy = 2;
         panel.add(Box.createVerticalStrut(30), gbc);
 
-        // --- TENGAH: SELECTOR & START ---
+        // SELECTOR & BUTTONS
         JPanel middleRow = new JPanel(new GridBagLayout());
         middleRow.setOpaque(false);
         GridBagConstraints midGbc = new GridBagConstraints();
@@ -146,15 +115,13 @@ public class SnakeLadderGame extends JFrame {
         midGbc.insets = new Insets(0, 10, 0, 10);
 
         JPanel selectorPanel = createWoodenSelector();
-        midGbc.gridx = 0;
-        midGbc.weightx = 0.3;
+        midGbc.gridx = 0; midGbc.weightx = 0.3;
         middleRow.add(selectorPanel, midGbc);
 
         WoodenButton btnStart = new WoodenButton("START GAME");
         btnStart.setFont(WOOD_BUTTON_FONT.deriveFont(24f));
         btnStart.addActionListener(e -> showCharacterSelection(selectedPlayerCount));
-        midGbc.gridx = 1;
-        midGbc.weightx = 0.7;
+        midGbc.gridx = 1; midGbc.weightx = 0.7;
         middleRow.add(btnStart, midGbc);
 
         JPanel wrapperMiddle = new JPanel(new BorderLayout());
@@ -166,7 +133,6 @@ public class SnakeLadderGame extends JFrame {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         panel.add(wrapperMiddle, gbc);
 
-        // --- BAWAH: OPTIONS & QUIT ---
         JPanel bottomRow = new JPanel(new GridLayout(1, 2, 20, 0));
         bottomRow.setOpaque(false);
         bottomRow.setBorder(new EmptyBorder(0, 100, 0, 100));
@@ -180,11 +146,31 @@ public class SnakeLadderGame extends JFrame {
         bottomRow.add(btnOptions);
         bottomRow.add(btnQuit);
 
-        gbc.gridy = 4;
-        gbc.ipady = 15;
+        gbc.gridy = 4; gbc.ipady = 15;
         panel.add(bottomRow, gbc);
 
         return panel;
+    }
+
+    // Helper: Menggambar background yang dipotong (Zoomed Map)
+    private void drawCroppedBackground(Graphics g, int w, int h) {
+        if (menuBackground != null) {
+            int imgW = menuBackground.getWidth(null);
+            int imgH = menuBackground.getHeight(null);
+            double cutTop = 0.18;
+            double cutBottom = 0.05;
+            double cutSide = 0.04;
+
+            int sx1 = (int) (imgW * cutSide);
+            int sy1 = (int) (imgH * cutTop);
+            int sx2 = (int) (imgW * (1.0 - cutSide));
+            int sy2 = (int) (imgH * (1.0 - cutBottom));
+
+            g.drawImage(menuBackground, 0, 0, w, h, sx1, sy1, sx2, sy2, null);
+        } else {
+            g.setColor(new Color(0, 105, 148));
+            g.fillRect(0, 0, w, h);
+        }
     }
 
     private JPanel createWoodenSelector() {
@@ -223,40 +209,15 @@ public class SnakeLadderGame extends JFrame {
     }
 
     // ==========================================
-    // PAGE 2: CHARACTER SELECTION (REVISI)
+    // PAGE 2: CHARACTER SELECTION (AVATAR UI)
     // ==========================================
     private void showCharacterSelection(int n) {
-
         JPanel selectionPanel = new JPanel(new BorderLayout()) {
             @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
-
-                // --- LOGIKA CROP BACKGROUND (SAMA SEPERTI MAIN MENU) ---
-                if (menuBackground != null) {
-                    int imgW = menuBackground.getWidth(this);
-                    int imgH = menuBackground.getHeight(this);
-
-                    // Potong pinggiran agar hanya MAP yang tampil
-                    double cutTop    = 0.18; // Potong 18% Atas (Hilangkan Judul lama)
-                    double cutBottom = 0.05;
-                    double cutSide   = 0.04;
-
-                    int sx1 = (int) (imgW * cutSide);
-                    int sy1 = (int) (imgH * cutTop);
-                    int sx2 = (int) (imgW * (1.0 - cutSide));
-                    int sy2 = (int) (imgH * (1.0 - cutBottom));
-
-                    // Gambar bagian tengah (Map) memenuhi layar
-                    g.drawImage(menuBackground, 0, 0, getWidth(), getHeight(),
-                            sx1, sy1, sx2, sy2, this);
-                } else {
-                    g.setColor(OceanTheme.SIDEBAR_BG);
-                    g.fillRect(0,0,getWidth(), getHeight());
-                }
-
-                // Overlay Gelap (Lebih gelap dari menu utama agar Input Field terbaca jelas)
-                g.setColor(new Color(0, 0, 0, 180)); // Alpha 180 (Gelap)
+                drawCroppedBackground(g, getWidth(), getHeight());
+                g.setColor(new Color(0, 0, 0, 180));
                 g.fillRect(0,0,getWidth(), getHeight());
             }
         };
@@ -267,12 +228,10 @@ public class SnakeLadderGame extends JFrame {
         header.setBorder(new EmptyBorder(40, 0, 30, 0));
         selectionPanel.add(header, BorderLayout.NORTH);
 
-        // Container Input
         JPanel inputsContainer = new JPanel();
         inputsContainer.setLayout(new BoxLayout(inputsContainer, BoxLayout.Y_AXIS));
         inputsContainer.setOpaque(false);
 
-        // Pusatkan container secara vertikal
         JPanel centerWrapper = new JPanel(new GridBagLayout());
         centerWrapper.setOpaque(false);
 
@@ -286,7 +245,6 @@ public class SnakeLadderGame extends JFrame {
         centerWrapper.add(inputsContainer);
         selectionPanel.add(centerWrapper, BorderLayout.CENTER);
 
-        // Footer Buttons
         JPanel footer = new JPanel(new FlowLayout(FlowLayout.CENTER, 30, 40));
         footer.setOpaque(false);
 
@@ -297,11 +255,10 @@ public class SnakeLadderGame extends JFrame {
         WoodenButton btnGo = new WoodenButton("LET'S DIVE!");
         btnGo.setPreferredSize(new Dimension(200, 50));
 
-        // --- LOGIKA VALIDASI DUPLIKAT ---
+        // VALIDASI DUPLIKAT
         btnGo.addActionListener(e -> {
             Set<Integer> selectedChars = new HashSet<>();
             boolean hasDuplicate = false;
-
             for (PlayerInputPanel input : inputFields) {
                 int selectedChar = input.getSelectedCharType();
                 if (selectedChars.contains(selectedChar)) {
@@ -314,12 +271,10 @@ public class SnakeLadderGame extends JFrame {
             if (hasDuplicate) {
                 JOptionPane.showMessageDialog(this,
                         "Oops! Every diver must be unique.\nPlease choose different characters for each player.",
-                        "Duplicate Character",
-                        JOptionPane.WARNING_MESSAGE);
-                return; // Stop
+                        "Duplicate Character", JOptionPane.WARNING_MESSAGE);
+                return;
             }
 
-            // Jika lolos validasi, mulai game
             List<Player> players = new ArrayList<>();
             Color[] pal = OceanTheme.PLAYER_COLORS;
             for (int i = 0; i < inputFields.size(); i++) {
@@ -338,144 +293,83 @@ public class SnakeLadderGame extends JFrame {
     }
 
     // ==========================================
-    // PAGE 3: SETTINGS
+    // PAGE 3: SETTINGS (WITH VOLUME)
     // ==========================================
     private JPanel createSettingsMenu() {
         JPanel panel = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
-                if (menuBackground != null) {
-                    g.drawImage(menuBackground, 0, 0, getWidth(), getHeight(), this);
-                }
+                drawCroppedBackground(g, getWidth(), getHeight());
                 g.setColor(new Color(0, 0, 0, 150));
                 g.fillRect(0, 0, getWidth(), getHeight());
             }
         };
         panel.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(20, 20, 20, 20);
+        gbc.insets = new Insets(10, 20, 10, 20);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
         JLabel title = new JLabel("OPTIONS");
         title.setFont(MINECRAFT_TITLE_FONT.deriveFont(40f));
         title.setForeground(OceanTheme.PEARL_GOLD);
-        gbc.gridx = 0; gbc.gridy = 0;
+        title.setHorizontalAlignment(SwingConstants.CENTER);
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
         panel.add(title, gbc);
 
-        JPanel toggleContainer = new JPanel(new GridLayout(2, 1, 0, 20));
-        toggleContainer.setOpaque(false);
+        gbc.gridwidth = 1;
 
-        JCheckBox musicToggle = createWoodenCheckbox("Background Music");
+        // BGM
+        gbc.gridy = 1;
+        JCheckBox musicToggle = createWoodenCheckbox("BGM (Music)");
         musicToggle.setSelected(!sound.isBgmMuted());
         musicToggle.addActionListener(e -> {
             if (musicToggle.isSelected()) sound.playBgm("bgm.wav");
             else sound.stopBgm();
         });
-        toggleContainer.add(musicToggle);
+        panel.add(musicToggle, gbc);
 
-        JCheckBox sfxToggle = createWoodenCheckbox("Sound Effects");
+        gbc.gridy = 2;
+        JSlider bgmSlider = createWoodenSlider();
+        bgmSlider.setValue((int)(sound.getBgmVolume() * 100));
+        bgmSlider.addChangeListener(e -> {
+            float vol = bgmSlider.getValue() / 100f;
+            sound.setBgmVolume(vol);
+        });
+        panel.add(bgmSlider, gbc);
+
+        // SFX
+        gbc.gridy = 3;
+        panel.add(Box.createVerticalStrut(10), gbc);
+
+        gbc.gridy = 4;
+        JCheckBox sfxToggle = createWoodenCheckbox("SFX (Effects)");
         sfxToggle.setSelected(!sound.isSfxMuted());
         sfxToggle.addActionListener(e -> sound.setSfxMuted(!sfxToggle.isSelected()));
-        toggleContainer.add(sfxToggle);
+        panel.add(sfxToggle, gbc);
 
-        gbc.gridy = 1;
-        panel.add(toggleContainer, gbc);
+        gbc.gridy = 5;
+        JSlider sfxSlider = createWoodenSlider();
+        sfxSlider.setValue((int)(sound.getSfxVolume() * 100));
+        sfxSlider.addChangeListener(e -> {
+            float vol = sfxSlider.getValue() / 100f;
+            sound.setSfxVolume(vol);
+        });
+        panel.add(sfxSlider, gbc);
 
+        // DONE BUTTON
+        gbc.gridy = 6; gbc.gridwidth = 2;
+        gbc.insets = new Insets(30, 20, 20, 20);
         WoodenButton btnBack = new WoodenButton("DONE");
         btnBack.setPreferredSize(new Dimension(200, 50));
         btnBack.addActionListener(e -> cardLayout.show(mainContainer, "MENU"));
-
-        gbc.gridy = 2;
         panel.add(btnBack, gbc);
 
         return panel;
     }
 
-    private JCheckBox createWoodenCheckbox(String text) {
-        JCheckBox cb = new JCheckBox(text);
-        cb.setFont(WOOD_BUTTON_FONT.deriveFont(20f));
-        cb.setForeground(Color.WHITE);
-        cb.setOpaque(false);
-        cb.setFocusPainted(false);
-        return cb;
-    }
-
     // ==========================================
-    // CUSTOM COMPONENT: WOODEN BUTTON 🪵
-    // ==========================================
-    class WoodenButton extends JButton {
-        private final Color WOOD_LIGHT = new Color(160, 82, 45);
-        private final Color WOOD_MAIN  = new Color(139, 69, 19);
-        private final Color WOOD_DARK  = new Color(80, 40, 10);
-        private final Color BORDER     = new Color(218, 165, 32);
-        private boolean isHovered = false;
-
-        public WoodenButton(String text) {
-            super(text);
-            setFont(WOOD_BUTTON_FONT);
-            setForeground(Color.WHITE);
-            setFocusPainted(false);
-            setContentAreaFilled(false);
-            setBorderPainted(false);
-            setCursor(new Cursor(Cursor.HAND_CURSOR));
-            addMouseListener(new MouseAdapter() {
-                public void mouseEntered(MouseEvent e) { isHovered = true; repaint(); }
-                public void mouseExited(MouseEvent e) { isHovered = false; repaint(); }
-            });
-        }
-
-        @Override
-        protected void paintComponent(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            int w = getWidth(); int h = getHeight();
-            Color baseColor = WOOD_MAIN;
-            if (getModel().isPressed()) baseColor = WOOD_DARK;
-            else if (isHovered) baseColor = WOOD_LIGHT;
-
-            GradientPaint woodGradient = new GradientPaint(0, 0, baseColor.brighter(), 0, h, baseColor.darker());
-            g2.setPaint(woodGradient);
-            g2.fillRoundRect(2, 2, w - 4, h - 4, 15, 15);
-
-            g2.setColor(BORDER);
-            g2.setStroke(new BasicStroke(3f));
-            g2.drawRoundRect(2, 2, w - 4, h - 4, 15, 15);
-
-            g2.setColor(new Color(50, 30, 10));
-            int pakuSize = 4;
-            g2.fillOval(10, 10, pakuSize, pakuSize);
-            g2.fillOval(w - 14, 10, pakuSize, pakuSize);
-            g2.fillOval(10, h - 14, pakuSize, pakuSize);
-            g2.fillOval(w - 14, h - 14, pakuSize, pakuSize);
-
-            FontMetrics fm = g2.getFontMetrics();
-            String text = getText();
-            int textX = (w - fm.stringWidth(text)) / 2;
-            int textY = (h + fm.getAscent()) / 2 - 4;
-
-            g2.setColor(new Color(0, 0, 0, 150));
-            g2.drawString(text, textX + 2, textY + 2);
-
-            if (isHovered) g2.setColor(Color.WHITE);
-            else g2.setColor(new Color(255, 235, 205));
-            g2.drawString(text, textX, textY);
-            g2.dispose();
-        }
-    }
-
-    private void applyShadow(JLabel label) {
-        label.setUI(new javax.swing.plaf.basic.BasicLabelUI() {
-            @Override
-            public void paint(Graphics g, JComponent c) {
-                g.setColor(new Color(0, 0, 0, 150));
-                g.drawString(c instanceof JLabel ? ((JLabel)c).getText() : "", 3, c.getHeight() - 3);
-                super.paint(g, c);
-            }
-        });
-    }
-
-    // ==========================================
-    // GAME INITIALIZATION LOGIC
+    // GAMEPLAY LOGIC (WITH PRIME JUMP)
     // ==========================================
     private void initGame(List<Player> playersInput) {
         this.board = new GameBoard(6, 10);
@@ -497,15 +391,17 @@ public class SnakeLadderGame extends JFrame {
         topBar.setOpaque(false);
         topBar.setBorder(new EmptyBorder(5, 10, 0, 10));
 
-        JButton btnHome = new JButton("⌂");
-        styleMiniButton(btnHome);
+        // 1. Tombol Home (Kayu + Icon Putih)
+        JButton btnHome = new BtnHomeWooden();
+        btnHome.setToolTipText("Main Menu");
         btnHome.addActionListener(e -> {
             int c = JOptionPane.showConfirmDialog(this, "Quit to Main Menu?", "Quit", JOptionPane.YES_NO_OPTION);
             if(c == JOptionPane.YES_OPTION) cardLayout.show(mainContainer, "MENU");
         });
 
-        JButton btnRestart = new JButton("↻");
-        styleMiniButton(btnRestart);
+        // 2. Tombol Restart (Kayu + Icon Putih)
+        JButton btnRestart = new BtnRestartWooden();
+        btnRestart.setToolTipText("Restart Game");
         btnRestart.addActionListener(e -> {
             int c = JOptionPane.showConfirmDialog(this, "Restart Game?", "Restart", JOptionPane.YES_NO_OPTION);
             if(c == JOptionPane.YES_OPTION) {
@@ -515,7 +411,7 @@ public class SnakeLadderGame extends JFrame {
             }
         });
 
-        JPanel rightCorner = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JPanel rightCorner = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0)); // Jarak antar tombol 10px
         rightCorner.setOpaque(false);
         rightCorner.add(btnHome);
         rightCorner.add(btnRestart);
@@ -550,14 +446,6 @@ public class SnakeLadderGame extends JFrame {
         refreshUI();
     }
 
-    private void styleMiniButton(JButton btn) {
-        btn.setFont(new Font("Segoe UI Symbol", Font.BOLD, 20));
-        btn.setForeground(Color.WHITE);
-        btn.setBackground(OceanTheme.BUTTON_ORANGE);
-        btn.setFocusPainted(false);
-        btn.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-    }
-
     private void refreshUI() {
         if(playerStack.isEmpty()) return;
         currentPlayer = playerStack.peek();
@@ -590,8 +478,10 @@ public class SnakeLadderGame extends JFrame {
         int roll = dice.rollMain();
         controlPanel.updateDice(roll);
 
-        int currentPos = currentPlayer.getPosition();
-        int target = currentPos + roll;
+        // [LOGIKA 1] Simpan posisi AWAL sebelum bergerak
+        int startPos = currentPlayer.getPosition();
+
+        int target = startPos + roll;
         int maxPos = board.getTotalSquares();
 
         if (target >= maxPos) {
@@ -600,7 +490,8 @@ public class SnakeLadderGame extends JFrame {
         }
 
         final int finalTarget = target;
-        animateMove(finalTarget, () -> checkEvents(finalTarget));
+        // [LOGIKA 2] Kirim startPos ke checkEvents untuk verifikasi aturan Prima
+        animateMove(finalTarget, () -> checkEvents(finalTarget, startPos));
     }
 
     private void animateMove(int targetPos, Runnable onComplete) {
@@ -626,7 +517,8 @@ public class SnakeLadderGame extends JFrame {
         stepTimer.start();
     }
 
-    private void checkEvents(int pos) {
+    // [LOGIKA 3] Implementasi Aturan: Tangga hanya aktif jika prevPos adalah Prima
+    private void checkEvents(int pos, int prevPos) {
         int pts = board.collectPoint(pos);
         if(pts > 0) {
             currentPlayer.addScore(pts);
@@ -634,17 +526,37 @@ public class SnakeLadderGame extends JFrame {
             sound.playSfx("coin.wav");
             controlPanel.setStatus("FOUND PEARLS: " + pts + "!", OceanTheme.CORAL_ORANGE);
         }
+
         if(board.getLinks().containsKey(pos)) {
-            int next = board.getLinks().get(pos).getTo();
-            boolean isUp = next > pos;
-            String msg = isUp ? "RIDING THE CURRENT!" : "WHIRLPOOL DOWN!";
-            Color c = isUp ? OceanTheme.WATER_DEEP : OceanTheme.CORAL_ORANGE;
-            controlPanel.setStatus(msg, c);
-            javax.swing.Timer t = new javax.swing.Timer(800, ev -> {
-                ((javax.swing.Timer)ev.getSource()).stop();
-                animateMove(next, () -> checkSpecial(next));
-            });
-            t.start();
+            Link link = board.getLinks().get(pos);
+            int next = link.getTo();
+            boolean isLadder = next > pos;
+
+            if (isLadder) {
+                // HANYA NAIK JIKA POSISI SEBELUMNYA ADALAH PRIMA
+                if (board.isPrime(prevPos)) {
+                    controlPanel.setStatus("PRIME JUMP! RIDING THE CURRENT!", OceanTheme.PEARL_GOLD);
+                    sound.playSfx("bonus.wav");
+
+                    javax.swing.Timer t = new javax.swing.Timer(800, ev -> {
+                        ((javax.swing.Timer)ev.getSource()).stop();
+                        animateMove(next, () -> checkSpecial(next));
+                    });
+                    t.start();
+                } else {
+                    // Jika bukan prima, tangga tidak aktif
+                    controlPanel.setStatus("NO PRIME BOOST. STAYING.", Color.GRAY);
+                    checkSpecial(pos);
+                }
+            } else {
+                // Ular selalu aktif (Turun)
+                controlPanel.setStatus("WHIRLPOOL DOWN!", OceanTheme.CORAL_ORANGE);
+                javax.swing.Timer t = new javax.swing.Timer(800, ev -> {
+                    ((javax.swing.Timer)ev.getSource()).stop();
+                    animateMove(next, () -> checkSpecial(next));
+                });
+                t.start();
+            }
         } else {
             checkSpecial(pos);
         }
@@ -654,7 +566,6 @@ public class SnakeLadderGame extends JFrame {
         if(board.hasStar(pos)) {
             controlPanel.setStatus("MAGIC BUBBLE: BONUS TURN!", OceanTheme.PEARL_GOLD);
             sound.playSfx("bonus.wav");
-
             javax.swing.Timer t = new javax.swing.Timer(1200, e -> {
                 refreshUI();
                 ((javax.swing.Timer)e.getSource()).stop();
@@ -731,68 +642,232 @@ public class SnakeLadderGame extends JFrame {
     }
 
     // ==========================================
-    // REVISI UI: INPUT PLAYER + PREVIEW ICON
+    // HELPERS & CUSTOM COMPONENTS
     // ==========================================
-    class PlayerInputPanel extends JPanel {
+    private JSlider createWoodenSlider() {
+        JSlider slider = new JSlider(0, 100);
+        slider.setOpaque(false);
+        slider.setForeground(OceanTheme.PEARL_GOLD);
+        slider.setBackground(Color.WHITE);
+        slider.setPaintTicks(true);
+        slider.setMajorTickSpacing(25);
+        return slider;
+    }
+
+    private JCheckBox createWoodenCheckbox(String text) {
+        JCheckBox cb = new JCheckBox(text);
+        cb.setFont(WOOD_BUTTON_FONT.deriveFont(20f));
+        cb.setForeground(Color.WHITE);
+        cb.setOpaque(false);
+        cb.setFocusPainted(false);
+        return cb;
+    }
+
+    private void applyShadow(JLabel label) {
+        label.setUI(new javax.swing.plaf.basic.BasicLabelUI() {
+            @Override
+            public void paint(Graphics g, JComponent c) {
+                g.setColor(new Color(0, 0, 0, 150));
+                g.drawString(c instanceof JLabel ? ((JLabel)c).getText() : "", 3, c.getHeight() - 3);
+                super.paint(g, c);
+            }
+        });
+    }
+
+    class WoodenButton extends JButton {
+        private final Color WOOD_LIGHT = new Color(160, 82, 45);
+        private final Color WOOD_MAIN  = new Color(139, 69, 19);
+        private final Color WOOD_DARK  = new Color(80, 40, 10);
+        private final Color BORDER     = new Color(218, 165, 32);
+        private boolean isHovered = false;
+
+        public WoodenButton(String text) {
+            super(text);
+            setFont(WOOD_BUTTON_FONT);
+            setForeground(Color.WHITE);
+            setFocusPainted(false);
+            setContentAreaFilled(false);
+            setBorderPainted(false);
+            setCursor(new Cursor(Cursor.HAND_CURSOR));
+            addMouseListener(new MouseAdapter() {
+                public void mouseEntered(MouseEvent e) { isHovered = true; repaint(); }
+                public void mouseExited(MouseEvent e) { isHovered = false; repaint(); }
+            });
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            int w = getWidth(); int h = getHeight();
+            Color baseColor = WOOD_MAIN;
+            if (getModel().isPressed()) baseColor = WOOD_DARK;
+            else if (isHovered) baseColor = WOOD_LIGHT;
+
+            GradientPaint woodGradient = new GradientPaint(0, 0, baseColor.brighter(), 0, h, baseColor.darker());
+            g2.setPaint(woodGradient);
+            g2.fillRoundRect(2, 2, w - 4, h - 4, 15, 15);
+
+            g2.setColor(BORDER);
+            g2.setStroke(new BasicStroke(3f));
+            g2.drawRoundRect(2, 2, w - 4, h - 4, 15, 15);
+
+            g2.setColor(new Color(50, 30, 10));
+            g2.fillOval(10, 10, 4, 4); g2.fillOval(w-14, 10, 4, 4);
+            g2.fillOval(10, h-14, 4, 4); g2.fillOval(w-14, h-14, 4, 4);
+
+            FontMetrics fm = g2.getFontMetrics();
+            String text = getText();
+            int textX = (w - fm.stringWidth(text)) / 2;
+            int textY = (h + fm.getAscent()) / 2 - 4;
+
+            g2.setColor(new Color(0, 0, 0, 150));
+            g2.drawString(text, textX + 2, textY + 2);
+
+            if (isHovered) g2.setColor(Color.WHITE);
+            else g2.setColor(new Color(255, 235, 205));
+            g2.drawString(text, textX, textY);
+            g2.dispose();
+        }
+    }
+
+    class HomeIcon implements Icon {
+        private final int size = 28;
+        private final Color ROOF_COLOR = new Color(139, 69, 19);
+        private final Color BODY_COLOR = new Color(180, 100, 55);
+        private final Color DOOR_COLOR = new Color(80, 40, 10);
+        private final Color OUTLINE_GOLD = new Color(255, 215, 0);
+
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.translate(x, y);
+
+            g2.setColor(new Color(0, 0, 0, 70));
+            g2.fillPolygon(new int[]{size/2, 2, size-2}, new int[]{3, size/2+1, size/2+1}, 3);
+            g2.fillRect(5, size/2+1, size-10, size/2-2);
+
+            GradientPaint bodyPaint = new GradientPaint(0, size/2, BODY_COLOR.brighter(), size, size, BODY_COLOR.darker());
+            g2.setPaint(bodyPaint);
+            g2.fillRect(4, size/2, size-8, size/2-2);
+            g2.setColor(OUTLINE_GOLD);
+            g2.setStroke(new BasicStroke(1.5f));
+            g2.drawRect(4, size/2, size-8, size/2-2);
+
+            int[] roofX = {size/2, 0, size};
+            int[] roofY = {0, size/2, size/2};
+            Polygon roof = new Polygon(roofX, roofY, 3);
+            g2.setColor(ROOF_COLOR); g2.fill(roof);
+            g2.setColor(OUTLINE_GOLD); g2.setStroke(new BasicStroke(2f)); g2.draw(roof);
+
+            int doorW = 8, doorH = 10, doorX = (size-doorW)/2, doorY = size-doorH-2;
+            g2.setColor(DOOR_COLOR); g2.fillRect(doorX, doorY, doorW, doorH);
+            g2.setColor(OUTLINE_GOLD.darker()); g2.setStroke(new BasicStroke(1f)); g2.drawRect(doorX, doorY, doorW, doorH);
+            g2.setColor(OUTLINE_GOLD); g2.fillOval(doorX+doorW-3, doorY+doorH/2-1, 2, 2);
+            g2.dispose();
+        }
+        @Override public int getIconWidth() { return size; }
+        @Override public int getIconHeight() { return size; }
+    }
+
+    // UI KARAKTER BARU (AVATAR STYLE)
+    static class PlayerInputPanel extends JPanel {
         private JTextField nameField;
         private JComboBox<String> charSelector;
         private JLabel iconPreview;
 
-        // Path icon untuk preview (sesuai urutan di ComboBox)
+        // Path icon
         private final String[] iconPaths = {
                 "/assets/dolphin.png", "/assets/turtle.png",
                 "/assets/submarine.png", "/assets/shark.png",
                 "/assets/octopus.png"
         };
+        private final String[] charNames = { "Dolphin", "Turtle", "Submarine", "Shark", "Octopus" };
         private final ImageIcon[] cachedIcons = new ImageIcon[5];
+        private final ImageIcon[] smallIcons = new ImageIcon[5];
 
         public PlayerInputPanel(int num) {
-            setLayout(new FlowLayout(FlowLayout.LEFT, 15, 0));
+            setLayout(new BorderLayout(15, 0));
             setOpaque(false);
 
-            // Background semi-transparan untuk panel input agar tulisan terbaca
-            JPanel bgPanel = new JPanel();
-            bgPanel.setPreferredSize(new Dimension(600, 60));
-            bgPanel.setBackground(new Color(0, 0, 0, 100)); // Hitam transparan
-            bgPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 20, 10));
-            bgPanel.setBorder(new LineBorder(OceanTheme.BORDER_GOLD, 1));
+            // Background Kartu Pemain (Hitam Transparan)
+            setBackground(new Color(0, 0, 0, 80));
+            setBorder(BorderFactory.createCompoundBorder(
+                    new LineBorder(OceanTheme.BORDER_GOLD, 2, true), // Border Emas Luar
+                    new EmptyBorder(10, 15, 10, 15) // Padding Dalam
+            ));
+            setMaximumSize(new Dimension(600, 85));
 
-            // Label Nama
-            JLabel lblName = new JLabel("Diver " + num);
-            lblName.setFont(new Font("Segoe UI", Font.BOLD, 14));
-            lblName.setForeground(OceanTheme.PEARL_GOLD);
-
-            // Input Nama
-            nameField = new JTextField("Player " + num);
-            nameField.setPreferredSize(new Dimension(150, 35));
-            nameField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-            nameField.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-
-            // Selector
-            String[] chars = { "🐬 Dolphin", "🐢 Turtle", "🚁 Submarine", "🦈 Shark", "🐙 Octopus" };
-            charSelector = new JComboBox<>(chars);
-            charSelector.setPreferredSize(new Dimension(160, 35));
-            charSelector.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-
-            // Icon Preview
-            iconPreview = new JLabel();
-            iconPreview.setPreferredSize(new Dimension(40, 40));
-
-            // Load icons untuk preview
             loadIcons();
-            updatePreview(); // Set initial
 
-            // Update icon saat pilihan berubah
+            // 1. ICON PREVIEW (KIRI)
+            iconPreview = new JLabel();
+            iconPreview.setPreferredSize(new Dimension(50, 50));
+            iconPreview.setHorizontalAlignment(SwingConstants.CENTER);
+            iconPreview.setBorder(new LineBorder(new Color(255, 255, 255, 50), 1));
+            add(iconPreview, BorderLayout.WEST);
+
+            // 2. TENGAH: NAMA & PILIHAN KARAKTER
+            JPanel centerPanel = new JPanel(new GridLayout(2, 1, 0, 8)); // Gap vertikal 8px
+            centerPanel.setOpaque(false);
+
+            // A. Baris Input Nama
+            JPanel nameRow = new JPanel(new BorderLayout(10, 0));
+            nameRow.setOpaque(false);
+
+            JLabel lblName = new JLabel("Diver " + num + ":");
+            lblName.setFont(new Font("Segoe UI", Font.BOLD, 14));
+            lblName.setForeground(OceanTheme.PEARL_GOLD); // Warna Emas
+
+            nameField = new JTextField("Player " + num);
+            nameField.setFont(new Font("Segoe UI", Font.BOLD, 14));
+
+            // [FIX UTAMA DISINI]
+            // Jangan transparan. Gunakan warna solid gelap agar teks tidak glitch.
+            nameField.setOpaque(true);
+            nameField.setBackground(new Color(30, 40, 50)); // Biru Gelap Solid
+            nameField.setForeground(Color.WHITE);           // Teks Putih
+            nameField.setCaretColor(Color.WHITE);           // Kursor Putih
+
+            // Beri Border Emas Tipis pada kotak input
+            nameField.setBorder(BorderFactory.createCompoundBorder(
+                    new LineBorder(new Color(218, 165, 32), 1),
+                    BorderFactory.createEmptyBorder(2, 8, 2, 8) // Padding teks di dalam kotak
+            ));
+
+            nameRow.add(lblName, BorderLayout.WEST);
+            nameRow.add(nameField, BorderLayout.CENTER);
+
+            // B. Baris Dropdown Karakter
+            charSelector = new JComboBox<>(charNames);
+            charSelector.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+            charSelector.setFocusable(false);
+
+            // Custom Renderer untuk menampilkan Icon kecil di dropdown
+            charSelector.setRenderer(new DefaultListCellRenderer() {
+                @Override
+                public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                    JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                    int iconIdx = -1;
+                    for(int i=0; i<charNames.length; i++) {
+                        if(charNames[i].equals(value)) { iconIdx = i; break; }
+                    }
+                    if (iconIdx >= 0 && smallIcons[iconIdx] != null) {
+                        label.setIcon(smallIcons[iconIdx]);
+                        label.setIconTextGap(10);
+                    }
+                    return label;
+                }
+            });
+
             charSelector.addActionListener(e -> updatePreview());
 
-            bgPanel.add(lblName);
-            bgPanel.add(nameField);
-            bgPanel.add(new JLabel("  Character: ")); // Spacer text
-            bgPanel.getComponent(2).setForeground(Color.WHITE);
-            bgPanel.add(charSelector);
-            bgPanel.add(iconPreview);
+            centerPanel.add(nameRow);
+            centerPanel.add(charSelector);
+            add(centerPanel, BorderLayout.CENTER);
 
-            add(bgPanel);
+            updatePreview();
         }
 
         private void loadIcons() {
@@ -800,8 +875,9 @@ public class SnakeLadderGame extends JFrame {
                 for (int i = 0; i < iconPaths.length; i++) {
                     URL url = getClass().getResource(iconPaths[i]);
                     if (url != null) {
-                        Image img = ImageIO.read(url).getScaledInstance(35, 35, Image.SCALE_SMOOTH);
-                        cachedIcons[i] = new ImageIcon(img);
+                        BufferedImage original = ImageIO.read(url);
+                        cachedIcons[i] = new ImageIcon(original.getScaledInstance(45, 45, Image.SCALE_SMOOTH));
+                        smallIcons[i] = new ImageIcon(original.getScaledInstance(20, 20, Image.SCALE_SMOOTH));
                     }
                 }
             } catch (Exception e) { e.printStackTrace(); }
@@ -818,5 +894,120 @@ public class SnakeLadderGame extends JFrame {
 
         public JTextField getNameField() { return nameField; }
         public int getSelectedCharType() { return charSelector.getSelectedIndex(); }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            // Menggambar background panel yang membulat
+            g.setColor(getBackground());
+            g.fillRoundRect(0, 0, getWidth(), getHeight(), 15, 15);
+            super.paintComponent(g);
+        }
+    }
+    // ==========================================
+    // CUSTOM MINI BUTTONS (TOP BAR) 🪵
+    // ==========================================
+
+    // Base Class: Membuat kotak kayu seragam
+    abstract class MiniWoodenButton extends JButton {
+        private final Color WOOD_LIGHT = new Color(160, 82, 45);
+        private final Color WOOD_MAIN  = new Color(139, 69, 19);
+        private final Color WOOD_DARK  = new Color(80, 40, 10);
+        private final Color BORDER     = new Color(218, 165, 32);
+        private boolean isHovered = false;
+
+        public MiniWoodenButton() {
+            setPreferredSize(new Dimension(45, 45)); // Ukuran kotak pas
+            setFocusPainted(false);
+            setContentAreaFilled(false);
+            setBorderPainted(false);
+            setCursor(new Cursor(Cursor.HAND_CURSOR));
+            addMouseListener(new MouseAdapter() {
+                public void mouseEntered(MouseEvent e) { isHovered = true; repaint(); }
+                public void mouseExited(MouseEvent e) { isHovered = false; repaint(); }
+            });
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            int w = getWidth(); int h = getHeight();
+
+            // 1. Background Kayu (Sama persis dengan tombol menu)
+            Color baseColor = WOOD_MAIN;
+            if (getModel().isPressed()) baseColor = WOOD_DARK;
+            else if (isHovered) baseColor = WOOD_LIGHT;
+
+            GradientPaint woodGradient = new GradientPaint(0, 0, baseColor.brighter(), 0, h, baseColor.darker());
+            g2.setPaint(woodGradient);
+            g2.fillRoundRect(2, 2, w - 4, h - 4, 12, 12);
+
+            // 2. Border Emas
+            g2.setColor(BORDER);
+            g2.setStroke(new BasicStroke(2f));
+            g2.drawRoundRect(2, 2, w - 4, h - 4, 12, 12);
+
+            // 3. Paku di Sudut (Detail kecil)
+            g2.setColor(new Color(60, 40, 10));
+            g2.fillOval(5, 5, 3, 3); g2.fillOval(w-8, 5, 3, 3);
+            g2.fillOval(5, h-8, 3, 3); g2.fillOval(w-8, h-8, 3, 3);
+
+            // 4. Gambar Icon (Abstract)
+            drawIcon(g2, w, h);
+
+            g2.dispose();
+        }
+
+        protected abstract void drawIcon(Graphics2D g2, int w, int h);
+    }
+
+    // Tombol HOME: Menggambar Rumah Putih
+    class BtnHomeWooden extends MiniWoodenButton {
+        @Override
+        protected void drawIcon(Graphics2D g2, int w, int h) {
+            g2.setColor(Color.WHITE);
+            int cx = w / 2;
+            int cy = h / 2;
+
+            // Atap Segitiga
+            Polygon roof = new Polygon();
+            roof.addPoint(cx, cy - 7);
+            roof.addPoint(cx - 9, cy + 2);
+            roof.addPoint(cx + 9, cy + 2);
+            g2.fillPolygon(roof);
+
+            // Badan Kotak
+            g2.fillRect(cx - 6, cy + 2, 12, 8);
+
+            // Pintu (Lubang kecil)
+            g2.setColor(new Color(139, 69, 19)); // Warna kayu gelap
+            g2.fillRect(cx - 2, cy + 6, 4, 4);
+        }
+    }
+
+    // Tombol RESTART: Menggambar Panah Putar Putih
+    class BtnRestartWooden extends MiniWoodenButton {
+        @Override
+        protected void drawIcon(Graphics2D g2, int w, int h) {
+            g2.setColor(Color.WHITE);
+            g2.setStroke(new BasicStroke(2.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
+            int cx = w / 2;
+            int cy = h / 2;
+            int r = 6;
+
+            // Gambar Panah Melingkar
+            g2.drawArc(cx - r, cy - r, r * 2, r * 2, 45, 270);
+
+            // Ujung Panah
+            // Koordinat manual agar tajam
+            int tipX = cx + 3;
+            int tipY = cy - 5;
+            Polygon arrow = new Polygon();
+            arrow.addPoint(tipX, tipY);
+            arrow.addPoint(tipX - 4, tipY + 1);
+            arrow.addPoint(tipX + 1, tipY + 5);
+            g2.fillPolygon(arrow);
+        }
     }
 }

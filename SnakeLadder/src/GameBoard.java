@@ -5,7 +5,7 @@ public class GameBoard {
     private final int totalSquares;
     private final Map<Integer, Link> links;
     private final Set<Integer> starPositions;     // Magic Bubble
-    private final Set<Integer> primePositions;    // Untuk Dijkstra Trigger
+    private final Set<Integer> primePositions;    // Untuk Syarat Naik Tangga & Dijkstra
     private final Map<Integer, Integer> pointNodes; // Random Score
 
     public GameBoard(int rows, int cols) {
@@ -21,48 +21,35 @@ public class GameBoard {
     }
 
     private void initializeBoard() {
-        // [PENTING] Urutan ini diubah agar Logic Prima berjalan duluan
-        generatePrimePositions();   // 1. Cari Angka Prima dulu
-        generateRandomLinks();      // 2. Pasang Tangga HANYA di Angka Prima
+        generatePrimePositions();   // 1. Generate Prima dulu
+        generateRandomLinks();      // 2. Pasang TANGGA SAJA
         generateStarPositions();    // 3. Pasang Bintang
         generateRandomPoints();     // 4. Pasang Poin
     }
 
-    // --- SYARAT: TANGGA HANYA DI ANGKA PRIMA & JARAK PENDEK ---
+    // [REVISI] HANYA MEMBUAT TANGGA (NAIK) - TIDAK ADA ULAR
     private void generateRandomLinks() {
         Random rand = new Random();
-
-        // Kumpulkan semua kandidat posisi start yang merupakan Angka Prima
-        // dan posisinya tidak terlalu dekat dengan finish (agar ada ruang untuk naik)
-        List<Integer> validPrimes = new ArrayList<>();
-        for (int p : primePositions) {
-            if (p <= totalSquares - 10) {
-                validPrimes.add(p);
-            }
-        }
-
         int count = 0;
-        // Kita coba buat maksimal 5 tangga (atau sebanyak jumlah prima yang tersedia)
-        while (count < 5 && !validPrimes.isEmpty()) {
 
-            // Pilih satu angka prima secara acak
-            int randomIndex = rand.nextInt(validPrimes.size());
-            int from = validPrimes.get(randomIndex);
+        // Loop sampai terbentuk 5 Tangga
+        while (count < 5) {
+            // Pilih posisi start acak (2 sampai 50 agar cukup ruang untuk naik)
+            int from = rand.nextInt(totalSquares - 15) + 2;
 
-            // Tentukan tujuan (Jarak pendek: 5 - 15 langkah)
-            int jumpDistance = rand.nextInt(11) + 5;
-            int to = from + jumpDistance;
+            // Tentukan jarak lompat (5 - 20 langkah)
+            int jump = rand.nextInt(16) + 5;
 
-            // Validasi: Tujuan harus valid dan belum ada link di sana
+            // [PERUBAHAN DISINI] Selalu Menjumlahkan (NAIK)
+            int to = from + jump;
+
+            // Validasi:
+            // 1. Tujuan harus di dalam papan (< totalSquares)
+            // 2. Tidak boleh overlap dengan start/end link lain
             if (to < totalSquares && !links.containsKey(from) && !links.containsKey(to)) {
-                links.put(from, new Link(from, to)); // Link terbentuk
-                count++;
 
-                // Hapus dari daftar agar tidak dipilih lagi (Satu prima max 1 tangga)
-                validPrimes.remove(randomIndex);
-            } else {
-                // Jika gagal (misal tujuan overlap), coba lagi tanpa menghapus kandidat
-                // (Atau hapus jika terlalu sulit, tapi biarkan loop berjalan)
+                links.put(from, new Link(from, to));
+                count++;
             }
         }
     }
@@ -74,7 +61,6 @@ public class GameBoard {
         int count = 0;
         while (count < 10) {
             int pos = rand.nextInt(totalSquares - 2) + 2;
-            // Pastikan tidak menumpuk di tempat yang sudah ada link
             if (!links.containsKey(pos) && !pointNodes.containsKey(pos)) {
                 pointNodes.put(pos, values[rand.nextInt(values.length)]);
                 count++;
@@ -107,6 +93,7 @@ public class GameBoard {
                 if (v > totalSquares) continue;
 
                 if (links.containsKey(v)) {
+                    // Logic Dijkstra menganggap Tangga sebagai jalan pintas
                     v = links.get(v).getTo();
                 }
 
